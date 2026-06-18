@@ -19,8 +19,8 @@ public class PlayerController : MonoBehaviour
     private bool jumpRequested;
     private bool isGrounded;
 
-    public event System.Action OnJumpPerformed;
-    public event System.Action OnAttackPerformed;
+    public event System.Action OnPlayerJump;
+    public event System.Action OnPlayerAttack;
 
     private void Awake()
     {
@@ -104,7 +104,7 @@ public class PlayerController : MonoBehaviour
         if (isGrounded)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            OnJumpPerformed?.Invoke();
+            OnPlayerJump?.Invoke();
         }
 
         jumpRequested = false;
@@ -113,6 +113,6 @@ public class PlayerController : MonoBehaviour
     private void HandleAttackInput()
     {
         Debug.Log("Atacou!");
-        OnAttackPerformed?.Invoke();
+        OnPlayerAttack?.Invoke();
     }
 }
