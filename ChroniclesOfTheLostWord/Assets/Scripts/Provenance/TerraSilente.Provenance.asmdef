@@ -1,0 +1,16 @@
+{
+    "name": "TerraSilente.Provenance",
+    "rootNamespace": "TerraSilente.Provenance",
+    "references": [
+        "TerraSilente.Player"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
