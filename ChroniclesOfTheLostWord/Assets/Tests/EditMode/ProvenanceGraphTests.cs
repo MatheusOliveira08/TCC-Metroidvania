@@ -58,9 +58,40 @@ namespace TerraSilente.Tests.Provenance
         }
 
         [Test]
+        public void StartSession_WhenCalled_ShouldStoreSessionMetadata()
+        {
+            var graph = new ProvenanceGraph();
+
+            graph.StartSession("session-001", 10f);
+
+            Assert.That(graph.Session.SessionId, Is.EqualTo("session-001"));
+            Assert.That(graph.Session.Result, Is.EqualTo("unfinished"));
+            Assert.That(graph.Session.StartTimestamp, Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void EndSession_WhenCalled_ShouldStoreResultAndMetrics()
+        {
+            var graph = new ProvenanceGraph();
+            graph.StartSession("session-002", 10f);
+
+            graph.EndSession("victory", 22f, 80f, 0f, 120f, 15f);
+
+            Assert.That(graph.Session.Result, Is.EqualTo("victory"));
+            Assert.That(graph.Session.EndTimestamp, Is.EqualTo(22f));
+            Assert.That(graph.Session.Duration, Is.EqualTo(12f).Within(0.001f));
+            Assert.That(graph.Session.PlayerRemainingHealth, Is.EqualTo(80f));
+            Assert.That(graph.Session.BossRemainingHealth, Is.EqualTo(0f));
+            Assert.That(graph.Session.TotalDamageDealtByPlayer, Is.EqualTo(120f));
+            Assert.That(graph.Session.TotalDamageTakenByPlayer, Is.EqualTo(15f));
+        }
+
+        [Test]
         public void ExportToJson_WhenCalled_ShouldCreateJsonFileWithGraphData()
         {
             var graph = new ProvenanceGraph();
+            graph.StartSession("session-export", 1f);
+            graph.EndSession("victory", 4f, 90f, 0f, 40f, 10f);
             graph.AddEvent(new ProvenanceEvent
             {
                 EventId = "event-export",
@@ -88,6 +119,9 @@ namespace TerraSilente.Tests.Provenance
                 Assert.That(json, Does.Contain("BossFSM"));
                 Assert.That(json, Does.Contain("BossDamageTaken"));
                 Assert.That(json, Does.Contain("event-player-attack"));
+                Assert.That(json, Does.Contain("\"sessionId\": \"session-export\""));
+                Assert.That(json, Does.Contain("\"result\": \"victory\""));
+                Assert.That(json, Does.Contain("\"parentEventId\""));
             }
             finally
             {
