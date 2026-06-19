@@ -16,6 +16,8 @@ namespace TerraSilente.Provenance
 
         public Vector2 Position { get; set; }
 
+        public float Value { get; set; }
+
         public string ParentEventId { get; set; }
     }
 }
