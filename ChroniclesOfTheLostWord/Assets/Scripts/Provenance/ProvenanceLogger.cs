@@ -16,6 +16,7 @@ namespace TerraSilente.Provenance
         private ProvenanceGraph graph = new();
         private string lastPlayerEventId;
         private string lastBossEventId;
+        private string sessionStartEventId;
 
         public ProvenanceGraph Graph => graph;
 
@@ -68,13 +69,15 @@ namespace TerraSilente.Provenance
             graph = new ProvenanceGraph();
             lastPlayerEventId = null;
             lastBossEventId = null;
+            sessionStartEventId = null;
             LastExportedFilePath = null;
         }
 
         public void StartSession(string sessionId = null)
         {
             graph.StartSession(sessionId, Time.time);
-            AddEvent(systemActorId, "SessionStart", transform.position, null);
+            var sessionStartEvent = AddEvent(systemActorId, "SessionStart", transform.position, null);
+            sessionStartEventId = sessionStartEvent.EventId;
         }
 
         public void EndSession(
@@ -129,32 +132,62 @@ namespace TerraSilente.Provenance
 
         public void LogPlayerDamageTaken(float damageAmount = 0f)
         {
-            var provenanceEvent = AddEvent(playerActorId, "PlayerDamageTaken", GetPlayerPosition(), lastBossEventId, damageAmount);
+            var provenanceEvent = AddEvent(
+                playerActorId,
+                "PlayerDamageTaken",
+                GetPlayerPosition(),
+                ResolveParentEventId(lastBossEventId),
+                damageAmount);
             lastPlayerEventId = provenanceEvent.EventId;
         }
 
         public void LogBossAttack()
         {
-            var provenanceEvent = AddEvent(bossActorId, "BossAttack", GetBossPosition(), lastBossEventId);
+            var provenanceEvent = AddEvent(
+                bossActorId,
+                "BossAttack",
+                GetBossPosition(),
+                ResolveParentEventId(lastBossEventId));
             lastBossEventId = provenanceEvent.EventId;
         }
 
         public void LogBossDamageTaken(float damageAmount = 0f)
         {
-            var provenanceEvent = AddEvent(bossActorId, "BossDamageTaken", GetBossPosition(), lastPlayerEventId, damageAmount);
+            var provenanceEvent = AddEvent(
+                bossActorId,
+                "BossDamageTaken",
+                GetBossPosition(),
+                ResolveParentEventId(lastPlayerEventId),
+                damageAmount);
             lastBossEventId = provenanceEvent.EventId;
         }
 
         public void LogBossDeath()
         {
-            var provenanceEvent = AddEvent(bossActorId, "BossDeath", GetBossPosition(), lastBossEventId);
+            var provenanceEvent = AddEvent(
+                bossActorId,
+                "BossDeath",
+                GetBossPosition(),
+                ResolveParentEventId(lastBossEventId));
             lastBossEventId = provenanceEvent.EventId;
         }
 
         private void LogPlayerAction(string actionType, float value = 0f)
         {
-            var provenanceEvent = AddEvent(playerActorId, actionType, GetPlayerPosition(), lastPlayerEventId, value);
+            var provenanceEvent = AddEvent(
+                playerActorId,
+                actionType,
+                GetPlayerPosition(),
+                ResolveParentEventId(lastPlayerEventId),
+                value);
             lastPlayerEventId = provenanceEvent.EventId;
+        }
+
+        private string ResolveParentEventId(string preferredParentEventId)
+        {
+            return string.IsNullOrWhiteSpace(preferredParentEventId)
+                ? sessionStartEventId
+                : preferredParentEventId;
         }
 
         private ProvenanceEvent AddEvent(string actorId, string actionType, Vector2 position, string parentEventId, float value = 0f)

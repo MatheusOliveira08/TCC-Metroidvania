@@ -60,6 +60,60 @@ namespace TerraSilente.Tests.Provenance
         }
 
         [Test]
+        public void LogPlayerJump_AfterSessionStart_ShouldLinkToSessionStart()
+        {
+            logger.StartSession("session-player-root");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            logger.LogPlayerJump();
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(2));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("PlayerJump"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+        }
+
+        [Test]
+        public void LogBossAttack_AfterSessionStart_ShouldLinkToSessionStart()
+        {
+            logger.StartSession("session-boss-root");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            logger.LogBossAttack();
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(2));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("BossAttack"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+        }
+
+        [Test]
+        public void LogBossDamageTaken_AfterSessionStartWithoutPlayerEvent_ShouldLinkToSessionStart()
+        {
+            logger.StartSession("session-boss-damage-root");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            logger.LogBossDamageTaken(10f);
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(2));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("BossDamageTaken"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+            Assert.That(logger.Graph.Events[1].Value, Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void LogPlayerDamageTaken_AfterSessionStartWithoutBossEvent_ShouldLinkToSessionStart()
+        {
+            logger.StartSession("session-player-damage-root");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            logger.LogPlayerDamageTaken(7f);
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(2));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("PlayerDamageTaken"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+            Assert.That(logger.Graph.Events[1].Value, Is.EqualTo(7f));
+        }
+
+        [Test]
         public void EndSession_WhenCalled_ShouldAddSessionEndEventAndStoreResult()
         {
             logger.ExportOnSessionEnd = false;
