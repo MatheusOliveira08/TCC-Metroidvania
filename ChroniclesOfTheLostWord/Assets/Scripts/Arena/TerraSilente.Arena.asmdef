@@ -1,0 +1,17 @@
+{
+    "name": "TerraSilente.Arena",
+    "rootNamespace": "TerraSilente.Arena",
+    "references": [
+        "TerraSilente.Provenance",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
