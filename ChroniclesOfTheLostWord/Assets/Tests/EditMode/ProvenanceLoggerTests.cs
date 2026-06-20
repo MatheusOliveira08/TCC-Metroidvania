@@ -1,5 +1,7 @@
 using System.IO;
 using NUnit.Framework;
+using TerraSilente.Boss;
+using TerraSilente.Player;
 using TerraSilente.Provenance;
 using UnityEngine;
 
@@ -8,6 +10,8 @@ namespace TerraSilente.Tests.Provenance
     public class ProvenanceLoggerTests
     {
         private GameObject loggerObject;
+        private GameObject playerObject;
+        private GameObject bossObject;
         private ProvenanceLogger logger;
 
         [SetUp]
@@ -21,6 +25,8 @@ namespace TerraSilente.Tests.Provenance
         public void TearDown()
         {
             Object.DestroyImmediate(loggerObject);
+            Object.DestroyImmediate(playerObject);
+            Object.DestroyImmediate(bossObject);
         }
 
         [Test]
@@ -144,6 +150,52 @@ namespace TerraSilente.Tests.Provenance
         }
 
         [Test]
+        public void CombatEvents_WhenPlayerAttackHitsBoss_ShouldLogDamageDealtAndBossDamageTakenWithCausalChain()
+        {
+            var playerCombat = CreatePlayerCombat();
+            var bossHealth = CreateBossHealth(new Vector3(0.5f, 0f, 0f));
+            RecreateLoggerAfterCombatObjects(playerCombat, bossHealth);
+            logger.StartSession("session-combat-hit");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            playerCombat.PerformAttack();
+
+            Assert.That(bossHealth.CurrentHealth, Is.EqualTo(90f));
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(4));
+            Assert.That(logger.Graph.Events[1].ActorId, Is.EqualTo("Player"));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("PlayerAttack"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+            Assert.That(logger.Graph.Events[2].ActorId, Is.EqualTo("Player"));
+            Assert.That(logger.Graph.Events[2].ActionType, Is.EqualTo("PlayerDamageDealt"));
+            Assert.That(logger.Graph.Events[2].ParentEventId, Is.EqualTo(logger.Graph.Events[1].EventId));
+            Assert.That(logger.Graph.Events[2].Value, Is.EqualTo(10f));
+            Assert.That(logger.Graph.Events[3].ActorId, Is.EqualTo("Boss"));
+            Assert.That(logger.Graph.Events[3].ActionType, Is.EqualTo("BossDamageTaken"));
+            Assert.That(logger.Graph.Events[3].ParentEventId, Is.EqualTo(logger.Graph.Events[2].EventId));
+            Assert.That(logger.Graph.Events[3].Value, Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void CombatEvents_WhenBossDies_ShouldLogBossDeathAfterDamageTaken()
+        {
+            var bossHealth = CreateBossHealth(Vector3.zero);
+            RecreateLoggerAfterCombatObjects(null, bossHealth);
+            logger.StartSession("session-boss-death");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            bossHealth.TakeDamage(100f);
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(3));
+            Assert.That(logger.Graph.Events[1].ActorId, Is.EqualTo("Boss"));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("BossDamageTaken"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+            Assert.That(logger.Graph.Events[1].Value, Is.EqualTo(100f));
+            Assert.That(logger.Graph.Events[2].ActorId, Is.EqualTo("Boss"));
+            Assert.That(logger.Graph.Events[2].ActionType, Is.EqualTo("BossDeath"));
+            Assert.That(logger.Graph.Events[2].ParentEventId, Is.EqualTo(logger.Graph.Events[1].EventId));
+        }
+
+        [Test]
         public void EndSession_WithExportEnabled_ShouldWriteSessionJson()
         {
             var outputDirectory = Path.Combine(Application.temporaryCachePath, "provenance-logger-tests");
@@ -189,6 +241,35 @@ namespace TerraSilente.Tests.Provenance
             Assert.That(logger.Graph.Events, Has.Count.EqualTo(1));
             Assert.That(logger.Graph.Events[0].ActionType, Is.EqualTo("PlayerAttack"));
             Assert.That(logger.Graph.Events[0].ParentEventId, Is.Null.Or.Empty);
+        }
+
+        private PlayerCombat CreatePlayerCombat()
+        {
+            playerObject = new GameObject("Player Combat Provenance Test");
+            playerObject.transform.position = Vector3.zero;
+            return playerObject.AddComponent<PlayerCombat>();
+        }
+
+        private BossHealth CreateBossHealth(Vector3 position)
+        {
+            bossObject = new GameObject("Boss Provenance Test");
+            bossObject.transform.position = position;
+            bossObject.AddComponent<BoxCollider2D>();
+            var bossHealth = bossObject.AddComponent<BossHealth>();
+            bossHealth.ResetHealth();
+            Physics2D.SyncTransforms();
+            return bossHealth;
+        }
+
+        private void RecreateLoggerAfterCombatObjects(PlayerCombat playerCombat, BossHealth bossHealth)
+        {
+            Object.DestroyImmediate(loggerObject);
+            loggerObject = new GameObject("Provenance Logger Test");
+            loggerObject.SetActive(false);
+            logger = loggerObject.AddComponent<ProvenanceLogger>();
+            logger.ExportOnSessionEnd = false;
+            logger.BindCombatSources(playerCombat, bossHealth);
+            loggerObject.SetActive(true);
         }
     }
 }

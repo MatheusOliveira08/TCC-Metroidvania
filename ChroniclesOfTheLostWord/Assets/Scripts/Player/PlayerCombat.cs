@@ -1,3 +1,4 @@
+using System;
 using TerraSilente.Combat;
 using UnityEngine;
 
@@ -14,6 +15,8 @@ namespace TerraSilente.Player
 
         private global::PlayerController playerController;
         private float lastAttackTime = float.NegativeInfinity;
+
+        public event Action OnPlayerAttackPerformed;
 
         public float AttackDamage => attackDamage;
 
@@ -56,6 +59,8 @@ namespace TerraSilente.Player
             }
 
             lastAttackTime = Time.time;
+            OnPlayerAttackPerformed?.Invoke();
+
             var origin = attackOrigin != null ? attackOrigin : transform;
             var hits = Physics2D.OverlapBoxAll(origin.position, attackSize, 0f, targetLayers);
 

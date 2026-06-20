@@ -1,3 +1,5 @@
+using TerraSilente.Boss;
+using TerraSilente.Player;
 using UnityEngine;
 
 namespace TerraSilente.Provenance
@@ -6,6 +8,8 @@ namespace TerraSilente.Provenance
     public class ProvenanceLogger : MonoBehaviour
     {
         [SerializeField] private global::PlayerController playerController;
+        [SerializeField] private PlayerCombat playerCombat;
+        [SerializeField] private BossHealth bossHealth;
         [SerializeField] private Transform bossTransform;
         [SerializeField] private string playerActorId = "Player";
         [SerializeField] private string bossActorId = "Boss";
@@ -15,8 +19,10 @@ namespace TerraSilente.Provenance
 
         private ProvenanceGraph graph = new();
         private string lastPlayerEventId;
+        private string lastPlayerActionType;
         private string lastBossEventId;
         private string sessionStartEventId;
+        private bool isSubscribedToSources;
 
         public ProvenanceGraph Graph => graph;
 
@@ -36,38 +42,40 @@ namespace TerraSilente.Provenance
 
         private void Awake()
         {
-            if (playerController == null)
-            {
-                playerController = FindFirstObjectByType<global::PlayerController>();
-            }
+            ResolveReferences();
         }
 
         private void OnEnable()
         {
-            if (playerController == null)
-            {
-                return;
-            }
-
-            playerController.OnPlayerJump += LogPlayerJump;
-            playerController.OnPlayerAttack += LogPlayerAttack;
+            ResolveReferences();
+            SubscribeToSources();
         }
 
         private void OnDisable()
         {
-            if (playerController == null)
+            UnsubscribeFromSources();
+        }
+
+        public void BindCombatSources(PlayerCombat newPlayerCombat, BossHealth newBossHealth)
+        {
+            UnsubscribeFromSources();
+
+            playerCombat = newPlayerCombat;
+            bossHealth = newBossHealth;
+
+            if (bossHealth != null)
             {
-                return;
+                bossTransform = bossHealth.transform;
             }
 
-            playerController.OnPlayerJump -= LogPlayerJump;
-            playerController.OnPlayerAttack -= LogPlayerAttack;
+            SubscribeToSources();
         }
 
         public void ResetSession()
         {
             graph = new ProvenanceGraph();
             lastPlayerEventId = null;
+            lastPlayerActionType = null;
             lastBossEventId = null;
             sessionStartEventId = null;
             LastExportedFilePath = null;
@@ -172,6 +180,16 @@ namespace TerraSilente.Provenance
             lastBossEventId = provenanceEvent.EventId;
         }
 
+        private void LogBossDamageTakenFromCombat(float damageAmount)
+        {
+            if (lastPlayerActionType == "PlayerAttack")
+            {
+                LogPlayerDamageDealt(damageAmount);
+            }
+
+            LogBossDamageTaken(damageAmount);
+        }
+
         private void LogPlayerAction(string actionType, float value = 0f)
         {
             var provenanceEvent = AddEvent(
@@ -181,6 +199,92 @@ namespace TerraSilente.Provenance
                 ResolveParentEventId(lastPlayerEventId),
                 value);
             lastPlayerEventId = provenanceEvent.EventId;
+            lastPlayerActionType = actionType;
+        }
+
+        private void ResolveReferences()
+        {
+            if (playerController == null)
+            {
+                playerController = FindFirstObjectByType<global::PlayerController>();
+            }
+
+            if (playerCombat == null)
+            {
+                playerCombat = FindFirstObjectByType<PlayerCombat>();
+            }
+
+            if (bossHealth == null)
+            {
+                bossHealth = FindFirstObjectByType<BossHealth>();
+            }
+
+            if (bossTransform == null && bossHealth != null)
+            {
+                bossTransform = bossHealth.transform;
+            }
+        }
+
+        private void SubscribeToSources()
+        {
+            if (isSubscribedToSources)
+            {
+                return;
+            }
+
+            var hasSubscription = false;
+
+            if (playerController != null)
+            {
+                playerController.OnPlayerJump += LogPlayerJump;
+                hasSubscription = true;
+            }
+
+            if (playerCombat != null)
+            {
+                playerCombat.OnPlayerAttackPerformed += LogPlayerAttack;
+                hasSubscription = true;
+            }
+            else if (playerController != null)
+            {
+                playerController.OnPlayerAttack += LogPlayerAttack;
+            }
+
+            if (bossHealth != null)
+            {
+                bossHealth.OnBossDamageTaken += LogBossDamageTakenFromCombat;
+                bossHealth.OnBossDeath += LogBossDeath;
+                hasSubscription = true;
+            }
+
+            isSubscribedToSources = hasSubscription;
+        }
+
+        private void UnsubscribeFromSources()
+        {
+            if (!isSubscribedToSources)
+            {
+                return;
+            }
+
+            if (playerController != null)
+            {
+                playerController.OnPlayerJump -= LogPlayerJump;
+                playerController.OnPlayerAttack -= LogPlayerAttack;
+            }
+
+            if (playerCombat != null)
+            {
+                playerCombat.OnPlayerAttackPerformed -= LogPlayerAttack;
+            }
+
+            if (bossHealth != null)
+            {
+                bossHealth.OnBossDamageTaken -= LogBossDamageTakenFromCombat;
+                bossHealth.OnBossDeath -= LogBossDeath;
+            }
+
+            isSubscribedToSources = false;
         }
 
         private string ResolveParentEventId(string preferredParentEventId)

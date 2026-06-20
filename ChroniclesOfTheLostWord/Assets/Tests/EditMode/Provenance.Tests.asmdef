@@ -3,6 +3,7 @@
     "rootNamespace": "TerraSilente.Tests",
     "references": [
         "TerraSilente.Player",
+        "TerraSilente.Boss",
         "TerraSilente.Provenance",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

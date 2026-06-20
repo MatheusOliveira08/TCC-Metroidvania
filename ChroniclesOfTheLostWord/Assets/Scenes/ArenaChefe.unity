@@ -150,7 +150,9 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: TerraSilente.Provenance::TerraSilente.Provenance.ProvenanceLogger
   playerController: {fileID: 1142651097}
-  bossTransform: {fileID: 0}
+  playerCombat: {fileID: 1142651100}
+  bossHealth: {fileID: 1600000006}
+  bossTransform: {fileID: 1600000002}
   playerActorId: Player
   bossActorId: Boss
   systemActorId: System

@@ -2,7 +2,8 @@
     "name": "TerraSilente.Provenance",
     "rootNamespace": "TerraSilente.Provenance",
     "references": [
-        "TerraSilente.Player"
+        "TerraSilente.Player",
+        "TerraSilente.Boss"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
