@@ -186,6 +186,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: TerraSilente.Arena::TerraSilente.Arena.ArenaManager
   provenanceLogger: {fileID: 273029357}
+  bossHealth: {fileID: 1600000006}
   startOnSceneStart: 1
   sessionIdPrefix: arena
   enableDebugVictoryHotkey: 1

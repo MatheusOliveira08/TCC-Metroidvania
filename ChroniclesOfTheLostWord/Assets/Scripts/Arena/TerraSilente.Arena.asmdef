@@ -3,6 +3,7 @@
     "rootNamespace": "TerraSilente.Arena",
     "references": [
         "TerraSilente.Provenance",
+        "TerraSilente.Boss",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

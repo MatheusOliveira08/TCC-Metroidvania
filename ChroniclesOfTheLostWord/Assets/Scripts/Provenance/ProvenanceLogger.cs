@@ -23,6 +23,7 @@ namespace TerraSilente.Provenance
         private string lastBossEventId;
         private string sessionStartEventId;
         private bool isSubscribedToSources;
+        private bool bossDeathLogged;
 
         public ProvenanceGraph Graph => graph;
 
@@ -78,6 +79,7 @@ namespace TerraSilente.Provenance
             lastPlayerActionType = null;
             lastBossEventId = null;
             sessionStartEventId = null;
+            bossDeathLogged = false;
             LastExportedFilePath = null;
         }
 
@@ -172,12 +174,18 @@ namespace TerraSilente.Provenance
 
         public void LogBossDeath()
         {
+            if (bossDeathLogged)
+            {
+                return;
+            }
+
             var provenanceEvent = AddEvent(
                 bossActorId,
                 "BossDeath",
                 GetBossPosition(),
                 ResolveParentEventId(lastBossEventId));
             lastBossEventId = provenanceEvent.EventId;
+            bossDeathLogged = true;
         }
 
         private void LogBossDamageTakenFromCombat(float damageAmount)
