@@ -1,10 +1,7 @@
 {
-    "name": "TerraSilente.Player",
-    "rootNamespace": "TerraSilente.Player",
-    "references": [
-        "Unity.InputSystem",
-        "TerraSilente.Combat"
-    ],
+    "name": "TerraSilente.Combat",
+    "rootNamespace": "TerraSilente.Combat",
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

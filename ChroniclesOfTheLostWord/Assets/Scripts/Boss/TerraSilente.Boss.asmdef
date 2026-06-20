@@ -1,8 +1,7 @@
 {
-    "name": "TerraSilente.Player",
-    "rootNamespace": "TerraSilente.Player",
+    "name": "TerraSilente.Boss",
+    "rootNamespace": "TerraSilente.Boss",
     "references": [
-        "Unity.InputSystem",
         "TerraSilente.Combat"
     ],
     "includePlatforms": [],
