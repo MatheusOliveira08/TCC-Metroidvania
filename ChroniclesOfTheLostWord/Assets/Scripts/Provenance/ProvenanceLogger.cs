@@ -10,6 +10,7 @@ namespace TerraSilente.Provenance
         [SerializeField] private global::PlayerController playerController;
         [SerializeField] private PlayerCombat playerCombat;
         [SerializeField] private BossHealth bossHealth;
+        [SerializeField] private BossFsmController bossFsmController;
         [SerializeField] private Transform bossTransform;
         [SerializeField] private string playerActorId = "Player";
         [SerializeField] private string bossActorId = "Boss";
@@ -57,12 +58,13 @@ namespace TerraSilente.Provenance
             UnsubscribeFromSources();
         }
 
-        public void BindCombatSources(PlayerCombat newPlayerCombat, BossHealth newBossHealth)
+        public void BindCombatSources(PlayerCombat newPlayerCombat, BossHealth newBossHealth, BossFsmController newBossFsmController = null)
         {
             UnsubscribeFromSources();
 
             playerCombat = newPlayerCombat;
             bossHealth = newBossHealth;
+            bossFsmController = newBossFsmController;
 
             if (bossHealth != null)
             {
@@ -227,6 +229,11 @@ namespace TerraSilente.Provenance
                 bossHealth = FindFirstObjectByType<BossHealth>();
             }
 
+            if (bossFsmController == null)
+            {
+                bossFsmController = FindFirstObjectByType<BossFsmController>();
+            }
+
             if (bossTransform == null && bossHealth != null)
             {
                 bossTransform = bossHealth.transform;
@@ -265,6 +272,12 @@ namespace TerraSilente.Provenance
                 hasSubscription = true;
             }
 
+            if (bossFsmController != null)
+            {
+                bossFsmController.OnBossAttackPerformed += LogBossAttack;
+                hasSubscription = true;
+            }
+
             isSubscribedToSources = hasSubscription;
         }
 
@@ -290,6 +303,11 @@ namespace TerraSilente.Provenance
             {
                 bossHealth.OnBossDamageTaken -= LogBossDamageTakenFromCombat;
                 bossHealth.OnBossDeath -= LogBossDeath;
+            }
+
+            if (bossFsmController != null)
+            {
+                bossFsmController.OnBossAttackPerformed -= LogBossAttack;
             }
 
             isSubscribedToSources = false;

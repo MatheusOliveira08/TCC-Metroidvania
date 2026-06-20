@@ -147,11 +147,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe406b79f714f694d847b844abc8ad4b, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: TerraSilente.Provenance::TerraSilente.Provenance.ProvenanceLogger
   playerController: {fileID: 1142651097}
   playerCombat: {fileID: 1142651100}
   bossHealth: {fileID: 1600000006}
+  bossFsmController: {fileID: 1600000007}
   bossTransform: {fileID: 1600000002}
   playerActorId: Player
   bossActorId: Boss
@@ -183,7 +184,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b3206399fe72ed84bb6f9b12eeea70ad, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: TerraSilente.Arena::TerraSilente.Arena.ArenaManager
   provenanceLogger: {fileID: 273029357}
   bossHealth: {fileID: 1600000006}
@@ -365,7 +366,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: 
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -638,7 +639,7 @@ Transform:
   m_GameObject: {fileID: 1142651094}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.72045, y: -1.78869, z: 0}
+  m_LocalPosition: {x: -1.569, y: -3.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -747,7 +748,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ed6de498d644d579b830d875475edb9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: TerraSilente.Player::TerraSilente.Player.PlayerCombat
   attackOrigin: {fileID: 0}
   attackSize: {x: 1.5, y: 1}
@@ -800,6 +801,7 @@ GameObject:
   - component: {fileID: 1600000004}
   - component: {fileID: 1600000005}
   - component: {fileID: 1600000006}
+  - component: {fileID: 1600000007}
   m_Layer: 0
   m_Name: Boss_FSM_Greybox
   m_TagString: Untagged
@@ -816,7 +818,7 @@ Transform:
   m_GameObject: {fileID: 1600000001}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.5, y: -1.78869, z: 0}
+  m_LocalPosition: {x: 3.132, y: -3.41, z: 0}
   m_LocalScale: {x: 1.2, y: 1.2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -907,7 +909,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 7
+  m_Constraints: 6
 --- !u!61 &1600000005
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -964,10 +966,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b2bb49d7a6104b8d9e9ea844bdba2e18, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: TerraSilente.Boss::TerraSilente.Boss.BossHealth
   maxHealth: 100
   currentHealth: 0
+--- !u!114 &1600000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1600000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9c5038d0ae9698499568ddefcbb4e8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: TerraSilente.Boss::TerraSilente.Boss.BossFsmController
+  playerTarget: {fileID: 1142651096}
+  bossHealth: {fileID: 1600000006}
+  chaseSpeed: 2
+  attackRange: 1.25
+  attackDuration: 0.2
+  retreatDuration: 0.45
+  retreatSpeed: 1.5
+  attackCooldown: 0.8
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

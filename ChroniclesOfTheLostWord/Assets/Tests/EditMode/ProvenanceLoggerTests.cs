@@ -154,7 +154,7 @@ namespace TerraSilente.Tests.Provenance
         {
             var playerCombat = CreatePlayerCombat();
             var bossHealth = CreateBossHealth(new Vector3(0.5f, 0f, 0f));
-            RecreateLoggerAfterCombatObjects(playerCombat, bossHealth);
+            RecreateLoggerAfterCombatObjects(playerCombat, bossHealth, null);
             logger.StartSession("session-combat-hit");
             var sessionStartEventId = logger.Graph.Events[0].EventId;
 
@@ -179,7 +179,7 @@ namespace TerraSilente.Tests.Provenance
         public void CombatEvents_WhenBossDies_ShouldLogBossDeathAfterDamageTaken()
         {
             var bossHealth = CreateBossHealth(Vector3.zero);
-            RecreateLoggerAfterCombatObjects(null, bossHealth);
+            RecreateLoggerAfterCombatObjects(null, bossHealth, null);
             logger.StartSession("session-boss-death");
             var sessionStartEventId = logger.Graph.Events[0].EventId;
 
@@ -193,6 +193,25 @@ namespace TerraSilente.Tests.Provenance
             Assert.That(logger.Graph.Events[2].ActorId, Is.EqualTo("Boss"));
             Assert.That(logger.Graph.Events[2].ActionType, Is.EqualTo("BossDeath"));
             Assert.That(logger.Graph.Events[2].ParentEventId, Is.EqualTo(logger.Graph.Events[1].EventId));
+        }
+
+        [Test]
+        public void CombatEvents_WhenBossFsmAttacks_ShouldLogBossAttackFromRealEvent()
+        {
+            var playerCombat = CreatePlayerCombat();
+            var bossHealth = CreateBossHealth(Vector3.zero);
+            var bossFsm = bossObject.AddComponent<BossFsmController>();
+            bossFsm.BindDependencies(playerObject.transform, bossHealth);
+            RecreateLoggerAfterCombatObjects(playerCombat, bossHealth, bossFsm);
+            logger.StartSession("session-boss-fsm-attack");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            bossFsm.Tick(0.02f);
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(2));
+            Assert.That(logger.Graph.Events[1].ActorId, Is.EqualTo("Boss"));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("BossAttack"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
         }
 
         [Test]
@@ -261,14 +280,14 @@ namespace TerraSilente.Tests.Provenance
             return bossHealth;
         }
 
-        private void RecreateLoggerAfterCombatObjects(PlayerCombat playerCombat, BossHealth bossHealth)
+        private void RecreateLoggerAfterCombatObjects(PlayerCombat playerCombat, BossHealth bossHealth, BossFsmController bossFsm)
         {
             Object.DestroyImmediate(loggerObject);
             loggerObject = new GameObject("Provenance Logger Test");
             loggerObject.SetActive(false);
             logger = loggerObject.AddComponent<ProvenanceLogger>();
             logger.ExportOnSessionEnd = false;
-            logger.BindCombatSources(playerCombat, bossHealth);
+            logger.BindCombatSources(playerCombat, bossHealth, bossFsm);
             loggerObject.SetActive(true);
         }
     }
