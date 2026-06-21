@@ -74,6 +74,13 @@ namespace TerraSilente.Provenance
             SubscribeToSources();
         }
 
+        public void BindPlayerController(global::PlayerController newPlayerController)
+        {
+            UnsubscribeFromSources();
+            playerController = newPlayerController;
+            SubscribeToSources();
+        }
+
         public void ResetSession()
         {
             graph = new ProvenanceGraph();
@@ -254,6 +261,7 @@ namespace TerraSilente.Provenance
             if (playerController != null)
             {
                 playerController.OnPlayerJump += LogPlayerJump;
+                playerController.OnPlayerDash += LogPlayerDash;
                 hasSubscription = true;
             }
 
@@ -293,6 +301,7 @@ namespace TerraSilente.Provenance
             if (playerController != null)
             {
                 playerController.OnPlayerJump -= LogPlayerJump;
+                playerController.OnPlayerDash -= LogPlayerDash;
                 playerController.OnPlayerAttack -= LogPlayerAttack;
             }
 

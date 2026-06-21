@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using NUnit.Framework;
 using TerraSilente.Boss;
 using TerraSilente.Player;
@@ -215,6 +216,25 @@ namespace TerraSilente.Tests.Provenance
         }
 
         [Test]
+        public void PlayerDash_WhenPlayerControllerRaisesDash_ShouldLogPlayerDashFromRealEvent()
+        {
+            var playerController = CreatePlayerController();
+            RecreateLoggerAfterSceneObjects(playerController);
+            logger.StartSession("session-player-dash");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+            SetPrivateField(playerController, "rb", playerObject.GetComponent<Rigidbody2D>());
+            SetPrivateField(playerController, "moveInput", 1f);
+
+            InvokePrivateMethod(playerController, "HandleDashInput");
+            InvokePrivateMethod(playerController, "FixedUpdate");
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(2));
+            Assert.That(logger.Graph.Events[1].ActorId, Is.EqualTo("Player"));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("PlayerDash"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+        }
+
+        [Test]
         public void EndSession_AfterCombatDamage_ShouldStoreAggregatedDamageTotals()
         {
             var playerCombat = CreatePlayerCombat();
@@ -278,6 +298,14 @@ namespace TerraSilente.Tests.Provenance
             Assert.That(logger.Graph.Events[0].ParentEventId, Is.Null.Or.Empty);
         }
 
+        private global::PlayerController CreatePlayerController()
+        {
+            playerObject = new GameObject("Player Controller Provenance Test");
+            playerObject.AddComponent<Rigidbody2D>();
+            playerObject.AddComponent<BoxCollider2D>();
+            return playerObject.AddComponent<global::PlayerController>();
+        }
+
         private PlayerCombat CreatePlayerCombat()
         {
             playerObject = new GameObject("Player Combat Provenance Test");
@@ -305,6 +333,33 @@ namespace TerraSilente.Tests.Provenance
             logger.ExportOnSessionEnd = false;
             logger.BindCombatSources(playerCombat, bossHealth, bossFsm);
             loggerObject.SetActive(true);
+        }
+
+        private void RecreateLoggerAfterSceneObjects(global::PlayerController playerController)
+        {
+            Object.DestroyImmediate(loggerObject);
+            loggerObject = new GameObject("Provenance Logger Test");
+            loggerObject.SetActive(false);
+            logger = loggerObject.AddComponent<ProvenanceLogger>();
+            logger.ExportOnSessionEnd = false;
+            logger.BindPlayerController(playerController);
+            loggerObject.SetActive(true);
+        }
+
+        private static void InvokePrivateMethod(global::PlayerController target, string methodName)
+        {
+            var method = typeof(global::PlayerController).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+
+            method.Invoke(target, null);
+        }
+
+        private static void SetPrivateField(global::PlayerController target, string fieldName, object value)
+        {
+            var field = typeof(global::PlayerController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+
+            field.SetValue(target, value);
         }
     }
 }

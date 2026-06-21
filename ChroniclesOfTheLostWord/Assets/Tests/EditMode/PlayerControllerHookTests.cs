@@ -48,6 +48,39 @@ namespace TerraSilente.Tests.Player
             Assert.That(wasRaised, Is.True);
         }
 
+        [Test]
+        public void FixedUpdate_WhenDashRequested_ShouldRaiseOnPlayerDashAndApplyHorizontalVelocity()
+        {
+            var wasRaised = false;
+            var rb = playerObject.GetComponent<Rigidbody2D>();
+            controller.OnPlayerDash += () => wasRaised = true;
+            SetPrivateField(controller, "rb", rb);
+            SetPrivateField(controller, "moveInput", 1f);
+
+            InvokePrivateMethod(controller, "HandleDashInput");
+            InvokePrivateMethod(controller, "FixedUpdate");
+
+            Assert.That(wasRaised, Is.True);
+            Assert.That(rb.linearVelocity.x, Is.GreaterThan(0f));
+        }
+
+        [Test]
+        public void FixedUpdate_WhenDashIsOnCooldown_ShouldNotRaiseOnPlayerDashAgain()
+        {
+            var dashEvents = 0;
+            controller.OnPlayerDash += () => dashEvents++;
+            SetPrivateField(controller, "rb", playerObject.GetComponent<Rigidbody2D>());
+            SetPrivateField(controller, "moveInput", 1f);
+
+            InvokePrivateMethod(controller, "HandleDashInput");
+            InvokePrivateMethod(controller, "FixedUpdate");
+            SetPrivateField(controller, "isDashing", false);
+            InvokePrivateMethod(controller, "HandleDashInput");
+            InvokePrivateMethod(controller, "FixedUpdate");
+
+            Assert.That(dashEvents, Is.EqualTo(1));
+        }
+
         private static void InvokePrivateMethod(global::PlayerController target, string methodName)
         {
             var method = typeof(global::PlayerController).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);

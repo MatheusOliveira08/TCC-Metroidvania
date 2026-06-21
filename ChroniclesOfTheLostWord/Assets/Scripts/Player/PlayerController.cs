@@ -9,6 +9,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 8f;
     [SerializeField] private float jumpForce = 14f;
 
+    [Header("Dash")]
+    [SerializeField] private float dashSpeed = 16f;
+    [SerializeField] private float dashDuration = 0.12f;
+    [SerializeField] private float dashCooldown = 0.5f;
+
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundCheckRadius = 0.2f;
@@ -17,10 +22,17 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D rb;
     private float moveInput;
     private bool jumpRequested;
+    private bool dashRequested;
     private bool isGrounded;
+    private bool isDashing;
+    private float dashTimer;
+    private float lastDashTime = float.NegativeInfinity;
+    private float lastMoveDirection = 1f;
+    private float dashDirection = 1f;
 
     public event System.Action OnPlayerJump;
     public event System.Action OnPlayerAttack;
+    public event System.Action OnPlayerDash;
 
     private void Awake()
     {
@@ -52,6 +64,11 @@ public class PlayerController : MonoBehaviour
             {
                 HandleAttackInput();
             }
+
+            if (Keyboard.current.leftShiftKey.wasPressedThisFrame || Keyboard.current.rightShiftKey.wasPressedThisFrame)
+            {
+                HandleDashInput();
+            }
         }
 
         if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
@@ -76,11 +93,28 @@ public class PlayerController : MonoBehaviour
         {
             HandleAttackInput();
         }
+
+        if (Gamepad.current.rightShoulder.wasPressedThisFrame)
+        {
+            HandleDashInput();
+        }
     }
 
     private void FixedUpdate()
     {
         CheckGrounded();
+
+        if (dashRequested)
+        {
+            TryStartDash();
+        }
+
+        if (isDashing)
+        {
+            ApplyDashMovement();
+            return;
+        }
+
         ApplyMovement();
 
         if (jumpRequested)
@@ -96,6 +130,11 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyMovement()
     {
+        if (Mathf.Abs(moveInput) > 0.01f)
+        {
+            lastMoveDirection = Mathf.Sign(moveInput);
+        }
+
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
     }
 
@@ -114,5 +153,38 @@ public class PlayerController : MonoBehaviour
     {
         Debug.Log("Atacou!");
         OnPlayerAttack?.Invoke();
+    }
+
+    private void HandleDashInput()
+    {
+        dashRequested = true;
+    }
+
+    private void TryStartDash()
+    {
+        dashRequested = false;
+
+        if (isDashing || Time.time < lastDashTime + dashCooldown)
+        {
+            return;
+        }
+
+        dashDirection = Mathf.Abs(moveInput) > 0.01f ? Mathf.Sign(moveInput) : lastMoveDirection;
+        lastMoveDirection = dashDirection;
+        dashTimer = dashDuration;
+        lastDashTime = Time.time;
+        isDashing = true;
+        OnPlayerDash?.Invoke();
+    }
+
+    private void ApplyDashMovement()
+    {
+        rb.linearVelocity = new Vector2(dashDirection * dashSpeed, rb.linearVelocity.y);
+        dashTimer -= Time.fixedDeltaTime;
+
+        if (dashTimer <= 0f)
+        {
+            isDashing = false;
+        }
     }
 }
