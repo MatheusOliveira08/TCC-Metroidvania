@@ -3,6 +3,9 @@
     "rootNamespace": "TerraSilente.Tests.Boss",
     "references": [
         "TerraSilente.Boss",
+        "TerraSilente.BossAgent",
+        "TerraSilente.Provenance",
+        "Unity.ML-Agents",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
