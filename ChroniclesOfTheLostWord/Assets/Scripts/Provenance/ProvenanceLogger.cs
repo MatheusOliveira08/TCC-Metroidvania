@@ -96,8 +96,8 @@ namespace TerraSilente.Provenance
             string result,
             float playerRemainingHealth = 0f,
             float bossRemainingHealth = 0f,
-            float totalDamageDealtByPlayer = 0f,
-            float totalDamageTakenByPlayer = 0f)
+            float? totalDamageDealtByPlayer = null,
+            float? totalDamageTakenByPlayer = null)
         {
             if (string.IsNullOrWhiteSpace(graph.Session.SessionId))
             {
@@ -105,14 +105,16 @@ namespace TerraSilente.Provenance
             }
 
             var parentEventId = GetLastEventId();
+            var resolvedTotalDamageDealtByPlayer = totalDamageDealtByPlayer ?? SumEventValues(playerActorId, "PlayerDamageDealt");
+            var resolvedTotalDamageTakenByPlayer = totalDamageTakenByPlayer ?? SumEventValues(playerActorId, "PlayerDamageTaken");
 
             graph.EndSession(
                 result,
                 Time.time,
                 playerRemainingHealth,
                 bossRemainingHealth,
-                totalDamageDealtByPlayer,
-                totalDamageTakenByPlayer);
+                resolvedTotalDamageDealtByPlayer,
+                resolvedTotalDamageTakenByPlayer);
 
             AddEvent(systemActorId, "SessionEnd", transform.position, parentEventId);
 
@@ -318,6 +320,21 @@ namespace TerraSilente.Provenance
             return string.IsNullOrWhiteSpace(preferredParentEventId)
                 ? sessionStartEventId
                 : preferredParentEventId;
+        }
+
+        private float SumEventValues(string actorId, string actionType)
+        {
+            var total = 0f;
+            for (var i = 0; i < graph.Events.Count; i++)
+            {
+                var provenanceEvent = graph.Events[i];
+                if (provenanceEvent.ActorId == actorId && provenanceEvent.ActionType == actionType)
+                {
+                    total += provenanceEvent.Value;
+                }
+            }
+
+            return total;
         }
 
         private ProvenanceEvent AddEvent(string actorId, string actionType, Vector2 position, string parentEventId, float value = 0f)

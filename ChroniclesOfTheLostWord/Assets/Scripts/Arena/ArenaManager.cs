@@ -101,8 +101,8 @@ namespace TerraSilente.Arena
             string result,
             float playerRemainingHealth = 0f,
             float bossRemainingHealth = 0f,
-            float totalDamageDealtByPlayer = 0f,
-            float totalDamageTakenByPlayer = 0f)
+            float? totalDamageDealtByPlayer = null,
+            float? totalDamageTakenByPlayer = null)
         {
             if (!IsFightActive || provenanceLogger == null)
             {

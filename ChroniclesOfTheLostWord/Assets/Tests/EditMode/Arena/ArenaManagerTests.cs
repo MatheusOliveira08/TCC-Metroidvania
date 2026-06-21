@@ -70,5 +70,16 @@ namespace TerraSilente.Tests.Arena
             Assert.That(provenanceLogger.Graph.Events.Count(e => e.ActionType == "BossDeath"), Is.EqualTo(1));
             Assert.That(provenanceLogger.Graph.Events.Count(e => e.ActionType == "SessionEnd"), Is.EqualTo(1));
         }
+
+        [Test]
+        public void BossDeath_WhenDamageWasLogged_ShouldKeepAggregatedDamageTotals()
+        {
+            arenaManager.StartFight("arena-aggregate-damage");
+            provenanceLogger.LogPlayerDamageDealt(25f);
+
+            bossHealth.TakeDamage(100f);
+
+            Assert.That(provenanceLogger.Graph.Session.TotalDamageDealtByPlayer, Is.EqualTo(25f));
+        }
     }
 }

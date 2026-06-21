@@ -215,6 +215,22 @@ namespace TerraSilente.Tests.Provenance
         }
 
         [Test]
+        public void EndSession_AfterCombatDamage_ShouldStoreAggregatedDamageTotals()
+        {
+            var playerCombat = CreatePlayerCombat();
+            var bossHealth = CreateBossHealth(new Vector3(0.5f, 0f, 0f));
+            RecreateLoggerAfterCombatObjects(playerCombat, bossHealth, null);
+            logger.StartSession("session-aggregate-damage");
+
+            playerCombat.PerformAttack();
+            logger.LogPlayerDamageTaken(4f);
+            logger.EndSession("victory");
+
+            Assert.That(logger.Graph.Session.TotalDamageDealtByPlayer, Is.EqualTo(10f));
+            Assert.That(logger.Graph.Session.TotalDamageTakenByPlayer, Is.EqualTo(4f));
+        }
+
+        [Test]
         public void EndSession_WithExportEnabled_ShouldWriteSessionJson()
         {
             var outputDirectory = Path.Combine(Application.temporaryCachePath, "provenance-logger-tests");
