@@ -136,31 +136,39 @@ graph TD
 
 ### 🔴 FASE 3 — ML-Agents + PPO com Reward Shaping (Dias 8-12 | 24-28 Jun)
 
-#### Dia 8 (24/06) — Boss Agent Setup
+#### Estado ao Entrar na Fase 3
+
+- A Fase 2 gerou JSONs de proveniência com `PlayerJump`, `PlayerDash`, `PlayerAttack`, `BossDamageTaken`, `BossDeath` e `SessionEnd` causalmente encadeados.
+- `TreinamentoML/scripts/filter_winning_sequences.py` extrai sequências de 3 ações permitidas antes de cada `BossDamageTaken` em sessões `result: "victory"`.
+- `TreinamentoML/winning_sequences.json` é o artefato de entrada da Fase 3. Ele pode ser regenerado localmente e não precisa ser commitado se a coleta bruta estiver sendo guardada fora do projeto.
+- `TreinamentoML/provenance_data` continua sendo dado bruto de runtime e não deve ser commitado por padrão.
+
+#### Fase 3A — Reward Shaping por Proveniência Isolado
 | # | Tarefa | Entrega |
 |---|--------|---------|
-| 8.1 | `BossAgent.cs` | Blueprint → Implementação. Herda de `Agent`. |
-| 8.2 | Observations | Posição boss (2), velocidade (2), posição relativa ao player (2), HP normalizado ambos (2), grounded (1), dash cooldown (1) = **~10 floats** |
-| 8.3 | Actions (Discrete) | Branch 0: {0=idle, 1=left, 2=right, 3=jump, 4=attack_melee, 5=dash} |
-| 8.4 | Componentes Unity | `BehaviorParameters` (name "BossAgent", space=10, 1 branch/6 ações), `DecisionRequester` (period=5) |
+| 3A.1 | `ProvenanceRewardShaper.cs` | Implementação testável sem depender ainda de ML-Agents. Carrega o JSON de sequências vitoriosas. |
+| 3A.2 | Buffer de ações | Mantém as últimas 3 ações recebidas via API pública e compara com as sequências carregadas. |
+| 3A.3 | Reward function isolada | Match exato → retorna recompensa configurável, padrão `+2.0`. Sem chamar `AddReward()` ainda. |
+| 3A.4 | Testes EditMode | Validar carga do JSON, match de sequência e ausência de reward quando a sequência não bate. |
 
-#### Dia 9 (25/06) — Reward Shaping por Proveniência (INOVAÇÃO DO TCC)
+#### Fase 3B — Boss Agent Setup + Integração com Reward Shaper
 | # | Tarefa | Entrega |
 |---|--------|---------|
-| 9.1 | `ProvenanceRewardShaper.cs` | Blueprint → Implementação. Carrega `winning_sequences.json` no `Initialize()`. |
-| 9.2 | Buffer de ações | Mantém um buffer circular das últimas 3 ações do BossAgent. A cada nova ação, compara com as sequências vitoriosas. |
-| 9.3 | Reward function | Match exato → `AddReward(+2.0)`. Reward extrínseco adicional: acertar player (+1.0), vencer (+5.0), levar dano (-0.5), penalidade por step (-0.001). |
-| 9.4 | Integrar ao BossAgent | `ProvenanceRewardShaper` é chamado dentro de `OnActionReceived()`. |
+| 3B.1 | Adicionar ML-Agents | Incluir `com.unity.ml-agents` e validar compilação do pacote antes de criar o agente. |
+| 3B.2 | `BossAgent.cs` | Implementação inicial herdando de `Agent`, com observações e ações discretas. |
+| 3B.3 | Observations | Posição boss (2), velocidade (2), posição relativa ao player (2), HP normalizado ambos (2), grounded (1), dash cooldown (1) = **~10 floats**. |
+| 3B.4 | Actions (Discrete) | Branch 0: {0=idle, 1=left, 2=right, 3=jump, 4=attack_melee, 5=dash}. |
+| 3B.5 | Integração de reward | `BossAgent` registra ações no `ProvenanceRewardShaper` e chama `AddReward()` com a recompensa retornada. |
 
-> **IMPORTANTE:** Esta é a **contribuição original** do TCC. O agente não imita um `.demo` diretamente — ele **descobre por conta própria** (via exploração PPO) que certas sequências de ações geram alta recompensa, e essas sequências foram extraídas do grafo de proveniência de jogadores humanos vitoriosos. A proveniência está guiando o aprendizado.
-
-#### Dia 10 (26/06) — Preparar Ambiente de Treinamento
+#### Fase 3C — Ambiente de Treinamento e Smoke Test PPO
 | # | Tarefa | Detalhe |
 |---|--------|---------|
-| 10.1 | Player controlado por script simples na cena de treino | Durante o treinamento, o Player precisa de um comportamento automático (andar, atacar aleatoriamente) para o Boss ter contra quem treinar. Criar `PlayerDummyAI.cs`. |
-| 10.2 | Reset de episódio | `OnEpisodeBegin()`: resetar posições, HPs, timers. |
-| 10.3 | Criar config YAML | `TreinamentoML/config/boss_ppo.yaml` — PPO puro (sem GAIL reward signal). |
-| 10.4 | Teste local rápido | `mlagents-learn` com 5k steps. Verificar se treina sem erros. |
+| 3C.1 | Player controlado por script simples na cena de treino | Durante o treinamento, o Player precisa de um comportamento automático (andar, atacar aleatoriamente) para o Boss ter contra quem treinar. Criar `PlayerDummyAI.cs`. |
+| 3C.2 | Reset de episódio | `OnEpisodeBegin()`: resetar posições, HPs, timers. |
+| 3C.3 | Criar config YAML | `TreinamentoML/config/boss_ppo.yaml` — PPO puro (sem GAIL reward signal). |
+| 3C.4 | Teste local rápido | `mlagents-learn` com 5k steps. Verificar se treina sem erros antes de treinos longos. |
+
+> **IMPORTANTE:** Esta é a **contribuição original** do TCC. O agente não imita um `.demo` diretamente — ele **descobre por conta própria** (via exploração PPO) que certas sequências de ações geram alta recompensa, e essas sequências foram extraídas do grafo de proveniência de jogadores humanos vitoriosos. A proveniência está guiando o aprendizado.
 
 #### Dia 11-12 (27-28/Jun) — Treinamento e Iteração
 | # | Tarefa | Detalhe |
@@ -241,7 +249,7 @@ ChroniclesOfTheLostWord/
     │   │   ├── ProvenanceGraph.cs        ← Grafo em memória (nós + arestas causais)
     │   │   ├── ProvenanceLogger.cs       ← Escuta eventos do jogo, popula grafo
     │   │   ├── ProvenanceExporter.cs     ← Serializa grafo → JSON
-    │   │   └── ProvenanceRewardShaper.cs ← Carrega winning_sequences.json, dá reward ao BossAgent
+    │   │   └── ProvenanceRewardShaper.cs ← Carrega winning_sequences.json, calcula reward por sequência
     │   ├── Arena/
     │   │   ├── ArenaManager.cs           ← Gerencia início/fim da luta
     │   │   └── GameMetrics.cs            ← Coleta métricas automáticas por sessão (exporta CSV)
@@ -250,10 +258,10 @@ ChroniclesOfTheLostWord/
     ├── Prefabs/
     │   ├── Player.prefab
     │   ├── Boss_FSM.prefab
-    │   └── Boss_GAIL.prefab
+    │   └── Boss_PPO.prefab
     ├── Scenes/
     │   ├── BossArena_FSM.unity           ← Cena jogável: Player vs FSM
-    │   ├── BossArena_GAIL.unity          ← Cena jogável: Player vs IA treinada
+    │   ├── BossArena_PPO.unity           ← Cena jogável: Player vs IA treinada
     │   └── TrainingArena.unity           ← Cena de treino: BossAgent vs PlayerDummyAI
     └── Models/
         └── BossAgent.onnx               ← Modelo treinado
