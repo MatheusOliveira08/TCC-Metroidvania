@@ -1,3 +1,5 @@
+using TerraSilente.Boss;
+using TerraSilente.Player;
 using UnityEngine;
 
 namespace TerraSilente.Arena
@@ -8,15 +10,52 @@ namespace TerraSilente.Arena
         [SerializeField] private string bossType = "PPO";
         [SerializeField] private string outputDirectory;
         [SerializeField] private string outputFileName = GameMetricsExporter.DefaultFileName;
+        [SerializeField] private global::PlayerController playerController;
+        [SerializeField] private PlayerCombat playerCombat;
+        [SerializeField] private BossHealth bossHealth;
+        [SerializeField] private BossFsmController bossFsmController;
 
         private GameMetricsSession currentSession;
         private bool isSessionActive;
+        private bool isSubscribedToSources;
+
+        private void Awake()
+        {
+            ResolveReferences();
+        }
+
+        private void OnEnable()
+        {
+            ResolveReferences();
+            SubscribeToSources();
+        }
+
+        private void OnDisable()
+        {
+            UnsubscribeFromSources();
+        }
 
         public void Configure(string newBossType, string newOutputDirectory, string newOutputFileName = GameMetricsExporter.DefaultFileName)
         {
             bossType = string.IsNullOrWhiteSpace(newBossType) ? bossType : newBossType;
             outputDirectory = newOutputDirectory;
             outputFileName = string.IsNullOrWhiteSpace(newOutputFileName) ? GameMetricsExporter.DefaultFileName : newOutputFileName;
+        }
+
+        public void BindSources(
+            global::PlayerController newPlayerController,
+            PlayerCombat newPlayerCombat,
+            BossHealth newBossHealth,
+            BossFsmController newBossFsmController)
+        {
+            UnsubscribeFromSources();
+
+            playerController = newPlayerController;
+            playerCombat = newPlayerCombat;
+            bossHealth = newBossHealth;
+            bossFsmController = newBossFsmController;
+
+            SubscribeToSources();
         }
 
         public void BeginSession(string sessionId)
@@ -141,6 +180,91 @@ namespace TerraSilente.Arena
                     currentSession.PpoDashCount++;
                     break;
             }
+        }
+
+        private void ResolveReferences()
+        {
+            if (playerController == null)
+            {
+                playerController = FindFirstObjectByType<global::PlayerController>();
+            }
+
+            if (playerCombat == null)
+            {
+                playerCombat = FindFirstObjectByType<PlayerCombat>();
+            }
+
+            if (bossHealth == null)
+            {
+                bossHealth = FindFirstObjectByType<BossHealth>();
+            }
+
+            if (bossFsmController == null)
+            {
+                bossFsmController = FindFirstObjectByType<BossFsmController>();
+            }
+        }
+
+        private void SubscribeToSources()
+        {
+            if (isSubscribedToSources)
+            {
+                return;
+            }
+
+            if (playerController != null)
+            {
+                playerController.OnPlayerJump += RecordPlayerJump;
+                playerController.OnPlayerDash += RecordPlayerDash;
+            }
+
+            if (playerCombat != null)
+            {
+                playerCombat.OnPlayerAttackPerformed += RecordPlayerAttack;
+            }
+
+            if (bossHealth != null)
+            {
+                bossHealth.OnBossDamageTaken += RecordBossDamageTaken;
+            }
+
+            if (bossFsmController != null)
+            {
+                bossFsmController.OnBossAttackPerformed += RecordBossAttack;
+            }
+
+            isSubscribedToSources = true;
+        }
+
+        private void UnsubscribeFromSources()
+        {
+            if (!isSubscribedToSources)
+            {
+                return;
+            }
+
+            if (playerController != null)
+            {
+                playerController.OnPlayerJump -= RecordPlayerJump;
+                playerController.OnPlayerDash -= RecordPlayerDash;
+            }
+
+            if (playerCombat != null)
+            {
+                playerCombat.OnPlayerAttackPerformed -= RecordPlayerAttack;
+            }
+
+            if (bossHealth != null)
+            {
+                bossHealth.OnBossDamageTaken -= RecordBossDamageTaken;
+            }
+
+            if (bossFsmController != null)
+            {
+                bossFsmController.OnBossAttackPerformed -= RecordBossAttack;
+            }
+
+            isSubscribedToSources = false;
         }
     }
 }

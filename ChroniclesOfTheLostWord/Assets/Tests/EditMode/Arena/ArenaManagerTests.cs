@@ -3,8 +3,12 @@ using System.Linq;
 using NUnit.Framework;
 using TerraSilente.Arena;
 using TerraSilente.Boss;
+using TerraSilente.Player;
 using TerraSilente.Provenance;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace TerraSilente.Tests.Arena
 {
@@ -195,12 +199,128 @@ namespace TerraSilente.Tests.Arena
             }
         }
 
+        [Test]
+        public void ArenaManager_WhenMetricsAreBound_ShouldExportCsvWhenFightEnds()
+        {
+            var outputDirectory = Path.Combine(Application.temporaryCachePath, "arena-manager-metrics-test");
+            DeleteDirectoryIfExists(outputDirectory);
+            var metricsObject = new GameObject("Arena Manager Metrics Test");
+
+            try
+            {
+                var metrics = metricsObject.AddComponent<GameMetrics>();
+                metrics.Configure("FSM", outputDirectory);
+                arenaManager.BindMetrics(metrics);
+
+                arenaManager.StartFight("arena-metrics-session");
+                arenaManager.EndFightAsVictory();
+
+                var csvPath = Path.Combine(outputDirectory, GameMetricsExporter.DefaultFileName);
+                var lines = File.ReadAllLines(csvPath);
+
+                Assert.That(lines[1], Does.StartWith("arena-metrics-session,FSM,victory,"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(metricsObject);
+                DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        [Test]
+        public void GameMetrics_WhenCombatSourcesEmitEvents_ShouldExportRecordedCombatMetrics()
+        {
+            var outputDirectory = Path.Combine(Application.temporaryCachePath, "game-metrics-source-test");
+            DeleteDirectoryIfExists(outputDirectory);
+
+            var playerObject = new GameObject("Metrics Player Source");
+            var bossObject = new GameObject("Metrics Boss Source");
+            var metricsObject = new GameObject("Metrics Source Test");
+
+            try
+            {
+                playerObject.AddComponent<Rigidbody2D>();
+                playerObject.AddComponent<BoxCollider2D>();
+                var playerController = playerObject.AddComponent<global::PlayerController>();
+                var playerCombat = playerObject.AddComponent<PlayerCombat>();
+
+                bossObject.AddComponent<Rigidbody2D>();
+                var sourceBossHealth = bossObject.AddComponent<BossHealth>();
+                sourceBossHealth.ResetHealth();
+                var bossFsmController = bossObject.AddComponent<BossFsmController>();
+                bossFsmController.BindDependencies(playerObject.transform, sourceBossHealth);
+
+                var metrics = metricsObject.AddComponent<GameMetrics>();
+                metrics.Configure("FSM", outputDirectory);
+                metrics.BindSources(playerController, playerCombat, sourceBossHealth, bossFsmController);
+                metrics.BeginSession("source-session", 0f);
+
+                playerCombat.PerformAttack();
+                sourceBossHealth.TakeDamage(7f);
+                bossFsmController.Tick(1f);
+
+                var csvPath = metrics.EndSession("victory", 3f, 12);
+                var lines = File.ReadAllLines(csvPath);
+
+                Assert.That(lines[1], Is.EqualTo("source-session,FSM,victory,0,3,3,12,7,0,0,1,0,1,0,0,0,0,0,0"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(metricsObject);
+                Object.DestroyImmediate(bossObject);
+                Object.DestroyImmediate(playerObject);
+                DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        [Test]
+        public void ArenaChefeScene_ShouldContainGameMetricsConfiguredForFsmEvaluation()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/ArenaChefe.unity", OpenSceneMode.Single);
+
+            var metrics = FindSingleComponent<GameMetrics>(scene);
+            var manager = FindSingleComponent<ArenaManager>(scene);
+            var serializedMetrics = new SerializedObject(metrics);
+            var serializedManager = new SerializedObject(manager);
+
+            Assert.That(serializedMetrics.FindProperty("bossType").stringValue, Is.EqualTo("FSM"));
+            Assert.That(serializedMetrics.FindProperty("outputDirectory").stringValue, Is.EqualTo("TreinamentoML/evaluation_data"));
+            Assert.That(serializedMetrics.FindProperty("outputFileName").stringValue, Is.EqualTo(GameMetricsExporter.DefaultFileName));
+            Assert.That(serializedManager.FindProperty("gameMetrics").objectReferenceValue, Is.EqualTo(metrics));
+        }
+
+        [Test]
+        public void BossArenaPpoScene_ShouldContainGameMetricsConfiguredForPpoEvaluation()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/Scenes/BossArena_PPO.unity", OpenSceneMode.Single);
+
+            var metrics = FindSingleComponent<GameMetrics>(scene);
+            var manager = FindSingleComponent<ArenaManager>(scene);
+            var serializedMetrics = new SerializedObject(metrics);
+            var serializedManager = new SerializedObject(manager);
+
+            Assert.That(serializedMetrics.FindProperty("bossType").stringValue, Is.EqualTo("PPO"));
+            Assert.That(serializedMetrics.FindProperty("outputDirectory").stringValue, Is.EqualTo("TreinamentoML/evaluation_data"));
+            Assert.That(serializedMetrics.FindProperty("outputFileName").stringValue, Is.EqualTo(GameMetricsExporter.DefaultFileName));
+            Assert.That(serializedManager.FindProperty("gameMetrics").objectReferenceValue, Is.EqualTo(metrics));
+        }
+
         private static void DeleteDirectoryIfExists(string outputDirectory)
         {
             if (Directory.Exists(outputDirectory))
             {
                 Directory.Delete(outputDirectory, true);
             }
+        }
+
+        private static T FindSingleComponent<T>(Scene scene) where T : Component
+        {
+            var components = scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<T>(true))
+                .ToArray();
+
+            Assert.That(components, Has.Length.EqualTo(1));
+            return components[0];
         }
     }
 }

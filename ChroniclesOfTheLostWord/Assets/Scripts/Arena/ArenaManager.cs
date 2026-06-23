@@ -11,6 +11,7 @@ namespace TerraSilente.Arena
     {
         [SerializeField] private ProvenanceLogger provenanceLogger;
         [SerializeField] private BossHealth bossHealth;
+        [SerializeField] private GameMetrics gameMetrics;
         [SerializeField] private bool startOnSceneStart = true;
         [SerializeField] private string sessionIdPrefix = "arena";
         [SerializeField] private bool enableDebugVictoryHotkey = true;
@@ -69,6 +70,11 @@ namespace TerraSilente.Arena
             SubscribeToBossDeath();
         }
 
+        public void BindMetrics(GameMetrics newGameMetrics)
+        {
+            gameMetrics = newGameMetrics;
+        }
+
         public void StartFight(string sessionId)
         {
             if (IsFightActive || provenanceLogger == null)
@@ -79,6 +85,7 @@ namespace TerraSilente.Arena
             CurrentSessionId = string.IsNullOrWhiteSpace(sessionId) ? BuildSessionId() : sessionId;
             provenanceLogger.ResetSession();
             provenanceLogger.StartSession(CurrentSessionId);
+            gameMetrics?.BeginSession(CurrentSessionId);
             IsFightActive = true;
         }
 
@@ -115,6 +122,7 @@ namespace TerraSilente.Arena
                 bossRemainingHealth,
                 totalDamageDealtByPlayer,
                 totalDamageTakenByPlayer);
+            gameMetrics?.EndSession(result);
 
             IsFightActive = false;
         }
@@ -140,6 +148,11 @@ namespace TerraSilente.Arena
             if (bossHealth == null)
             {
                 bossHealth = FindFirstObjectByType<BossHealth>();
+            }
+
+            if (gameMetrics == null)
+            {
+                gameMetrics = FindFirstObjectByType<GameMetrics>();
             }
         }
 

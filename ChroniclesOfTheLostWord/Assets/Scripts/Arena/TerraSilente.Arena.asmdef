@@ -4,6 +4,7 @@
     "references": [
         "TerraSilente.Provenance",
         "TerraSilente.Boss",
+        "TerraSilente.Player",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],
