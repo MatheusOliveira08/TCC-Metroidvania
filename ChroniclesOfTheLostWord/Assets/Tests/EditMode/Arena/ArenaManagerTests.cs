@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using TerraSilente.Arena;
@@ -80,6 +81,126 @@ namespace TerraSilente.Tests.Arena
             bossHealth.TakeDamage(100f);
 
             Assert.That(provenanceLogger.Graph.Session.TotalDamageDealtByPlayer, Is.EqualTo(25f));
+        }
+
+        [Test]
+        public void AppendSession_WhenCsvDoesNotExist_ShouldCreateDirectoryHeaderAndInvariantRow()
+        {
+            var outputDirectory = Path.Combine(Application.temporaryCachePath, "game-metrics-create-test");
+            DeleteDirectoryIfExists(outputDirectory);
+
+            try
+            {
+                var session = new GameMetricsSession
+                {
+                    SessionId = "session-ppo",
+                    BossType = "PPO",
+                    Result = "victory",
+                    StartTimeSeconds = 1.5f,
+                    EndTimeSeconds = 5.75f,
+                    EpisodeSteps = 42,
+                    BossDamageTaken = 30.5f,
+                    PlayerDamageTaken = 7.25f,
+                    PlayerJumpCount = 1,
+                    PlayerAttackCount = 2,
+                    PlayerDashCount = 3,
+                    BossAttackCount = 4,
+                    PpoIdleCount = 5,
+                    PpoMoveLeftCount = 6,
+                    PpoMoveRightCount = 7,
+                    PpoJumpCount = 8,
+                    PpoAttackCount = 9,
+                    PpoDashCount = 10
+                };
+
+                var csvPath = GameMetricsExporter.AppendSession(session, outputDirectory);
+                var lines = File.ReadAllLines(csvPath);
+
+                Assert.That(csvPath, Is.EqualTo(Path.Combine(outputDirectory, GameMetricsExporter.DefaultFileName)));
+                Assert.That(lines[0], Is.EqualTo(GameMetricsExporter.Header));
+                Assert.That(lines[1], Is.EqualTo("session-ppo,PPO,victory,1.5,5.75,4.25,42,30.5,7.25,1,2,3,4,5,6,7,8,9,10"));
+            }
+            finally
+            {
+                DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        [Test]
+        public void AppendSession_WhenCsvAlreadyExists_ShouldAppendWithoutDuplicatingHeader()
+        {
+            var outputDirectory = Path.Combine(Application.temporaryCachePath, "game-metrics-append-test");
+            DeleteDirectoryIfExists(outputDirectory);
+
+            try
+            {
+                GameMetricsExporter.AppendSession(new GameMetricsSession
+                {
+                    SessionId = "session-fsm-1",
+                    BossType = "FSM",
+                    Result = "defeat"
+                }, outputDirectory);
+
+                var csvPath = GameMetricsExporter.AppendSession(new GameMetricsSession
+                {
+                    SessionId = "session-fsm-2",
+                    BossType = "FSM",
+                    Result = "victory"
+                }, outputDirectory);
+
+                var lines = File.ReadAllLines(csvPath);
+
+                Assert.That(lines, Has.Length.EqualTo(3));
+                Assert.That(lines.Count(line => line == GameMetricsExporter.Header), Is.EqualTo(1));
+                Assert.That(lines[1], Does.StartWith("session-fsm-1,FSM,defeat,"));
+                Assert.That(lines[2], Does.StartWith("session-fsm-2,FSM,victory,"));
+            }
+            finally
+            {
+                DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        [Test]
+        public void GameMetrics_WhenSessionEnds_ShouldExportRecordedCounts()
+        {
+            var outputDirectory = Path.Combine(Application.temporaryCachePath, "game-metrics-component-test");
+            DeleteDirectoryIfExists(outputDirectory);
+            var metricsObject = new GameObject("Game Metrics Test");
+
+            try
+            {
+                var metrics = metricsObject.AddComponent<GameMetrics>();
+                metrics.Configure("PPO", outputDirectory);
+                metrics.BeginSession("session-component", 10f);
+
+                metrics.RecordBossDamageTaken(12f);
+                metrics.RecordPlayerDamageTaken(3f);
+                metrics.RecordPlayerJump();
+                metrics.RecordPlayerAttack();
+                metrics.RecordPlayerDash();
+                metrics.RecordBossAttack();
+                metrics.RecordPpoAction(GameMetricsPpoAction.Idle);
+                metrics.RecordPpoAction(GameMetricsPpoAction.MoveLeft);
+
+                var csvPath = metrics.EndSession("victory", 14.5f, 99);
+                var lines = File.ReadAllLines(csvPath);
+
+                Assert.That(lines[1], Is.EqualTo("session-component,PPO,victory,10,14.5,4.5,99,12,3,1,1,1,1,1,1,0,0,0,0"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(metricsObject);
+                DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        private static void DeleteDirectoryIfExists(string outputDirectory)
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, true);
+            }
         }
     }
 }
