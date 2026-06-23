@@ -30,15 +30,24 @@ namespace TerraSilente.Tests.Boss
             var behaviorParameters = prefab.GetComponent<BehaviorParameters>();
             Assert.That(behaviorParameters, Is.Not.Null);
             Assert.That(behaviorParameters.BehaviorName, Is.EqualTo("BossAgent"));
-            Assert.That(behaviorParameters.BehaviorType, Is.EqualTo(BehaviorType.Default));
+            Assert.That(behaviorParameters.BehaviorType, Is.EqualTo(BehaviorType.InferenceOnly));
+            var serializedBehavior = new SerializedObject(behaviorParameters);
+            Assert.That(serializedBehavior.FindProperty("m_Model").objectReferenceValue, Is.Not.Null);
             Assert.That(behaviorParameters.BrainParameters.VectorObservationSize, Is.EqualTo(BossAgent.ObservationCount));
             Assert.That(behaviorParameters.BrainParameters.ActionSpec.NumDiscreteActions, Is.EqualTo(1));
             Assert.That(behaviorParameters.BrainParameters.ActionSpec.BranchSizes[0], Is.EqualTo(BossAgent.DiscreteActionCount));
 
             var decisionRequester = prefab.GetComponent<DecisionRequester>();
             Assert.That(decisionRequester, Is.Not.Null);
-            Assert.That(decisionRequester.DecisionPeriod, Is.EqualTo(5));
+            Assert.That(decisionRequester.DecisionPeriod, Is.EqualTo(BossAgent.DefaultDecisionPeriod));
             Assert.That(decisionRequester.TakeActionsBetweenDecisions, Is.True);
+
+            var bossAgent = prefab.GetComponent<BossAgent>();
+            Assert.That(bossAgent.MaxStep, Is.EqualTo(BossAgent.DefaultMaxEpisodeSteps));
+
+            var serializedAgent = new SerializedObject(bossAgent);
+            Assert.That(serializedAgent.FindProperty("applyEditorTrainingSettings").boolValue, Is.False);
+            Assert.That(serializedAgent.FindProperty("editorTrainingTimeScale").floatValue, Is.EqualTo(BossAgent.DefaultEditorTrainingTimeScale).Within(0.001f));
         }
 
         [Test]

@@ -168,12 +168,27 @@ graph TD
 | 3C.3 | Criar config YAML | `TreinamentoML/config/boss_ppo.yaml` — PPO puro (sem GAIL reward signal). |
 | 3C.4 | Teste local rápido | `mlagents-learn` com 5k steps. Verificar se treina sem erros antes de treinos longos. |
 
+#### Fase 3D — Treinamento Completo + Exportação ONNX
+| # | Tarefa | Detalhe |
+|---|--------|---------|
+| 3D.1 | Treino intermediário de validação | Rodar `boss_v1_100k` com `100k` steps para validar convergência inicial, geração de resultados e exportação `.onnx` sem gastar o ciclo completo. |
+| 3D.2 | Monitorar TensorBoard | Usar `tensorboard --logdir results` ou diretório temporário equivalente. Observar `Cumulative Reward`, `Episode Length` e perdas da policy. |
+| 3D.3 | Exportar modelo inicial | Copiar `BossAgent.onnx` gerado pelo run `boss_v1_100k` para `ChroniclesOfTheLostWord/Assets/Models/BossAgent.onnx` para smoke de inference. |
+| 3D.4 | Validar inference no Editor | Configurar `BehaviorParameters` com o modelo `.onnx`, `BehaviorType = Inference Only`, e validar que a cena roda sem Python conectado. |
+| 3D.5 | Treino final de TCC | Depois do smoke com `100k`, rodar o treino final com `TreinamentoML/config/boss_ppo.yaml` em `500k` steps (`run-id=boss_v1_500k`) para produzir o modelo usado na Fase 4. |
+
+**Status em 23/06:** Fase 3D concluida. O run intermediario `boss_v1_100k` validou o pipeline de treino/exportacao e o run final `boss_v1_500k` chegou a `500000` steps. O treino final exportou `BossAgent.onnx`, integrado em `Assets/Models/BossAgent.onnx`. O prefab `Boss_PPO.prefab` esta configurado com `BehaviorType = InferenceOnly` e referencia o modelo final importado.
+
+**Resultado do run final:** `boss_v1_500k` terminou com `Mean Reward: 1766.400`, `Std of Reward: 12.800` e `Time Elapsed: 2007.533 s`. O artefato exportado foi copiado de `C:\Users\MATHEU~1\AppData\Local\Temp\opencode\mlagents-results\boss_v1_500k\BossAgent.onnx` para o projeto Unity.
+
+**Notas operacionais:** nesta maquina, o treino estavel pelo Editor usou `python -m mlagents.trainers.learn`, `torch==2.8.0`, `onnx==1.15.0` e `setuptools==65.5.1`. O `.exe` standalone e algumas DLLs JIT continuam sujeitos ao bloqueio local do Windows App Control/Device Guard.
+
 > **IMPORTANTE:** Esta é a **contribuição original** do TCC. O agente não imita um `.demo` diretamente — ele **descobre por conta própria** (via exploração PPO) que certas sequências de ações geram alta recompensa, e essas sequências foram extraídas do grafo de proveniência de jogadores humanos vitoriosos. A proveniência está guiando o aprendizado.
 
 #### Dia 11-12 (27-28/Jun) — Treinamento e Iteração
 | # | Tarefa | Detalhe |
 |---|--------|---------|
-| 11.1 | Treinamento completo | `mlagents-learn config/boss_ppo.yaml --run-id=boss_v1`. Target: 300k-500k steps. |
+| 11.1 | Treinamento completo | `python -m mlagents.trainers.learn TreinamentoML/config/boss_ppo.yaml --run-id=boss_v1_500k`. Target final: 500k steps. |
 | 11.2 | Monitorar TensorBoard | `tensorboard --logdir results`. Observar curva de reward. Capturar screenshots para o TCC. |
 | 11.3 | Iterar se necessário | Ajustar rewards, `hidden_units`, `batch_size`, `learning_rate`. Re-treinar. |
 | 11.4 | Exportar .onnx | `results/boss_v1/BossAgent.onnx` → `Assets/Models/` |

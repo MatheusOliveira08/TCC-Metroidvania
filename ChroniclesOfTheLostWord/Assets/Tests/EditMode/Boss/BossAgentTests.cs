@@ -5,6 +5,7 @@ using TerraSilente.Provenance;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Policies;
+using UnityEditor;
 using UnityEngine;
 
 namespace TerraSilente.Tests.Boss
@@ -38,10 +39,15 @@ namespace TerraSilente.Tests.Boss
         private BossAgent bossAgent;
         private BossHealth bossHealth;
         private ProvenanceRewardShaper rewardShaper;
+        private float originalTimeScale;
+        private bool originalRunInBackground;
 
         [SetUp]
         public void SetUp()
         {
+            originalTimeScale = Time.timeScale;
+            originalRunInBackground = Application.runInBackground;
+
             bossObject = new GameObject("BossAgentTests");
             bossObject.AddComponent<Rigidbody2D>();
             bossHealth = bossObject.AddComponent<BossHealth>();
@@ -64,6 +70,9 @@ namespace TerraSilente.Tests.Boss
         [TearDown]
         public void TearDown()
         {
+            Time.timeScale = originalTimeScale;
+            Application.runInBackground = originalRunInBackground;
+
             UnityEngine.Object.DestroyImmediate(bossObject);
             UnityEngine.Object.DestroyImmediate(bossSpawnObject);
             UnityEngine.Object.DestroyImmediate(playerObject);
@@ -85,13 +94,34 @@ namespace TerraSilente.Tests.Boss
         }
 
         [Test]
+        public void Awake_WhenBehaviorTypeWasSerialized_ShouldPreserveBehaviorType()
+        {
+            var inferenceBoss = new GameObject("BossAgentInferenceTypeTest");
+            inferenceBoss.AddComponent<Rigidbody2D>();
+            var behaviorParameters = inferenceBoss.AddComponent<BehaviorParameters>();
+            behaviorParameters.BehaviorType = BehaviorType.InferenceOnly;
+
+            try
+            {
+                inferenceBoss.AddComponent<BossAgent>();
+
+                Assert.That(behaviorParameters.BehaviorType, Is.EqualTo(BehaviorType.InferenceOnly));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(inferenceBoss);
+            }
+        }
+
+        [Test]
         public void Awake_WhenCreated_ShouldConfigureDecisionRequesterForTraining()
         {
             var decisionRequester = bossObject.GetComponent<DecisionRequester>();
 
             Assert.That(decisionRequester, Is.Not.Null);
-            Assert.That(decisionRequester.DecisionPeriod, Is.EqualTo(5));
+            Assert.That(decisionRequester.DecisionPeriod, Is.EqualTo(BossAgent.DefaultDecisionPeriod));
             Assert.That(decisionRequester.TakeActionsBetweenDecisions, Is.True);
+            Assert.That(bossAgent.MaxStep, Is.EqualTo(BossAgent.DefaultMaxEpisodeSteps));
         }
 
         [Test]
@@ -141,6 +171,21 @@ namespace TerraSilente.Tests.Boss
             Assert.That(playerRigidbody.linearVelocity, Is.EqualTo(Vector2.zero));
             Assert.That(bossHealth.CurrentHealth, Is.EqualTo(bossHealth.MaxHealth));
             Assert.That(rewardShaper.BufferedActionCount, Is.Zero);
+        }
+
+        [Test]
+        public void OnEpisodeBegin_WhenEditorTrainingSettingsAreEnabled_ShouldReapplyFastRuntimeSettings()
+        {
+            var serializedAgent = new SerializedObject(bossAgent);
+            serializedAgent.FindProperty("applyEditorTrainingSettings").boolValue = true;
+            serializedAgent.ApplyModifiedPropertiesWithoutUndo();
+            Time.timeScale = 1f;
+            Application.runInBackground = false;
+
+            bossAgent.OnEpisodeBegin();
+
+            Assert.That(Time.timeScale, Is.EqualTo(BossAgent.DefaultEditorTrainingTimeScale).Within(0.001f));
+            Assert.That(Application.runInBackground, Is.True);
         }
     }
 }

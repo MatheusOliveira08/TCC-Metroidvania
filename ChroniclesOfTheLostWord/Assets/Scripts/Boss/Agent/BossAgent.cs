@@ -15,6 +15,9 @@ namespace TerraSilente.Boss
     {
         public const int ObservationCount = 10;
         public const int DiscreteActionCount = 6;
+        public const int DefaultDecisionPeriod = 1;
+        public const int DefaultMaxEpisodeSteps = 1000;
+        public const float DefaultEditorTrainingTimeScale = 100f;
 
         public const int IdleAction = 0;
         public const int MoveLeftAction = 1;
@@ -35,6 +38,10 @@ namespace TerraSilente.Boss
         [SerializeField] private float moveSpeed = 2f;
         [SerializeField] private float jumpVelocity = 6f;
         [SerializeField] private float dashSpeed = 8f;
+        [SerializeField] private int decisionPeriod = DefaultDecisionPeriod;
+        [SerializeField] private int maxEpisodeSteps = DefaultMaxEpisodeSteps;
+        [SerializeField] private bool applyEditorTrainingSettings;
+        [SerializeField] private float editorTrainingTimeScale = DefaultEditorTrainingTimeScale;
 
         private Rigidbody2D rb;
         private float lastHorizontalDirection = 1f;
@@ -46,6 +53,7 @@ namespace TerraSilente.Boss
             base.Awake();
             ResolveReferences();
             ConfigureBehaviorParameters();
+            ConfigureTrainingRuntime();
         }
 
         public void BindDependencies(Transform newPlayerTarget, BossHealth newBossHealth, ProvenanceRewardShaper newRewardShaper)
@@ -55,6 +63,7 @@ namespace TerraSilente.Boss
             rewardShaper = newRewardShaper;
             ResolveReferences();
             ConfigureBehaviorParameters();
+            ConfigureTrainingRuntime();
         }
 
         public void BindTrainingReset(Transform newBossSpawnPoint, Transform newPlayerSpawnPoint)
@@ -66,6 +75,7 @@ namespace TerraSilente.Boss
         public override void OnEpisodeBegin()
         {
             ResetTrainingEpisode();
+            ConfigureEditorTrainingRuntime();
         }
 
         public void ResetTrainingEpisode()
@@ -197,9 +207,35 @@ namespace TerraSilente.Boss
             }
 
             behaviorParameters.BehaviorName = "BossAgent";
-            behaviorParameters.BehaviorType = BehaviorType.Default;
             behaviorParameters.BrainParameters.VectorObservationSize = ObservationCount;
             behaviorParameters.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(DiscreteActionCount);
+        }
+
+        private void ConfigureTrainingRuntime()
+        {
+            MaxStep = Mathf.Max(1, maxEpisodeSteps);
+
+            var decisionRequester = GetComponent<DecisionRequester>();
+            if (decisionRequester == null)
+            {
+                return;
+            }
+
+            decisionRequester.DecisionPeriod = Mathf.Max(1, decisionPeriod);
+            decisionRequester.DecisionStep = 0;
+            decisionRequester.TakeActionsBetweenDecisions = true;
+            ConfigureEditorTrainingRuntime();
+        }
+
+        private void ConfigureEditorTrainingRuntime()
+        {
+            if (!applyEditorTrainingSettings)
+            {
+                return;
+            }
+
+            Application.runInBackground = true;
+            Time.timeScale = Mathf.Max(1f, editorTrainingTimeScale);
         }
 
         private float RecordProvenanceAction(string actionType)
