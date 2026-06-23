@@ -26,9 +26,7 @@ namespace TerraSilente.Arena
                 throw new ArgumentNullException(nameof(session));
             }
 
-            var resolvedDirectory = string.IsNullOrWhiteSpace(outputDirectory)
-                ? BuildDefaultOutputDirectory()
-                : outputDirectory;
+            var resolvedDirectory = ResolveOutputDirectory(outputDirectory);
             var resolvedFileName = string.IsNullOrWhiteSpace(fileName) ? DefaultFileName : fileName;
 
             Directory.CreateDirectory(resolvedDirectory);
@@ -48,6 +46,21 @@ namespace TerraSilente.Arena
         public static string BuildDefaultOutputDirectory()
         {
             return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TreinamentoML", "evaluation_data"));
+        }
+
+        private static string ResolveOutputDirectory(string outputDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                return BuildDefaultOutputDirectory();
+            }
+
+            if (Path.IsPathRooted(outputDirectory))
+            {
+                return outputDirectory;
+            }
+
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", outputDirectory));
         }
 
         private static string ToCsvLine(GameMetricsSession session)

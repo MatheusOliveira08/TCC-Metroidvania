@@ -166,6 +166,31 @@ namespace TerraSilente.Tests.Arena
         }
 
         [Test]
+        public void AppendSession_WhenOutputDirectoryIsRelative_ShouldResolveFromRepositoryRoot()
+        {
+            var relativeDirectory = Path.Combine("TreinamentoML", "evaluation_data_relative_test");
+            var expectedDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", relativeDirectory));
+            DeleteDirectoryIfExists(expectedDirectory);
+
+            try
+            {
+                var csvPath = GameMetricsExporter.AppendSession(new GameMetricsSession
+                {
+                    SessionId = "relative-session",
+                    BossType = "FSM",
+                    Result = "victory"
+                }, relativeDirectory);
+
+                Assert.That(csvPath, Is.EqualTo(Path.Combine(expectedDirectory, GameMetricsExporter.DefaultFileName)));
+                Assert.That(File.Exists(csvPath), Is.True);
+            }
+            finally
+            {
+                DeleteDirectoryIfExists(expectedDirectory);
+            }
+        }
+
+        [Test]
         public void GameMetrics_WhenSessionEnds_ShouldExportRecordedCounts()
         {
             var outputDirectory = Path.Combine(Application.temporaryCachePath, "game-metrics-component-test");
