@@ -1,3 +1,5 @@
+using System.IO;
+using System.Reflection;
 using NUnit.Framework;
 using TerraSilente.Provenance;
 using UnityEngine;
@@ -71,6 +73,33 @@ namespace TerraSilente.Tests.Provenance
             rewardShaper.RecordAction("PlayerDash");
 
             Assert.That(rewardShaper.RecordAction("PlayerJump"), Is.Zero);
+        }
+
+        [Test]
+        public void OnEnable_WhenSerializedWinningSequencesFileExists_ShouldLoadSequences()
+        {
+            var tempFilePath = Path.Combine(Path.GetTempPath(), "terra-silente-winning-sequences-test.json");
+            File.WriteAllText(tempFilePath, WinningSequencesJson);
+
+            var loaderObject = new GameObject("AutoLoadingRewardShaperTests");
+            try
+            {
+                var autoLoadingShaper = loaderObject.AddComponent<ProvenanceRewardShaper>();
+                typeof(ProvenanceRewardShaper)
+                    .GetField("winningSequencesFilePath", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(autoLoadingShaper, tempFilePath);
+
+                typeof(ProvenanceRewardShaper)
+                    .GetMethod("OnEnable", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.Invoke(autoLoadingShaper, null);
+
+                Assert.That(autoLoadingShaper.LoadedSequenceCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(loaderObject);
+                File.Delete(tempFilePath);
+            }
         }
     }
 }

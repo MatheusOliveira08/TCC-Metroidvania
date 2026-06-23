@@ -29,6 +29,14 @@ namespace TerraSilente.Provenance
 
         public int BufferedActionCount => recentActions.Count;
 
+        private void OnEnable()
+        {
+            if (winningSequences.Count == 0)
+            {
+                TryLoadFromFile();
+            }
+        }
+
         public void LoadFromJson(string json)
         {
             winningSequences.Clear();

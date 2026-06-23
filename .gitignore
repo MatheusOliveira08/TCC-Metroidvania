@@ -108,3 +108,8 @@ InitTestScene*.unity*
 # Python test/runtime cache
 __pycache__/
 *.py[cod]
+
+# ML-Agents runtime telemetry and generated training artifacts
+**/[Aa]ssets/ML-Agents/Timers/
+TreinamentoML/provenance_data/
+TreinamentoML/winning_sequences.json

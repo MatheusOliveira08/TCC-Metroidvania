@@ -10,6 +10,7 @@ namespace TerraSilente.Boss
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(BehaviorParameters))]
+    [RequireComponent(typeof(DecisionRequester))]
     public class BossAgent : Agent
     {
         public const int ObservationCount = 10;
@@ -27,6 +28,8 @@ namespace TerraSilente.Boss
         private const string PlayerDashActionType = "PlayerDash";
 
         [SerializeField] private Transform playerTarget;
+        [SerializeField] private Transform bossSpawnPoint;
+        [SerializeField] private Transform playerSpawnPoint;
         [SerializeField] private BossHealth bossHealth;
         [SerializeField] private ProvenanceRewardShaper rewardShaper;
         [SerializeField] private float moveSpeed = 2f;
@@ -52,6 +55,46 @@ namespace TerraSilente.Boss
             rewardShaper = newRewardShaper;
             ResolveReferences();
             ConfigureBehaviorParameters();
+        }
+
+        public void BindTrainingReset(Transform newBossSpawnPoint, Transform newPlayerSpawnPoint)
+        {
+            bossSpawnPoint = newBossSpawnPoint;
+            playerSpawnPoint = newPlayerSpawnPoint;
+        }
+
+        public override void OnEpisodeBegin()
+        {
+            ResetTrainingEpisode();
+        }
+
+        public void ResetTrainingEpisode()
+        {
+            ResolveReferences();
+
+            if (bossSpawnPoint != null)
+            {
+                transform.position = bossSpawnPoint.position;
+            }
+
+            if (playerTarget != null && playerSpawnPoint != null)
+            {
+                playerTarget.position = playerSpawnPoint.position;
+            }
+
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector2.zero;
+            }
+
+            if (playerTarget != null && playerTarget.TryGetComponent<Rigidbody2D>(out var playerRigidbody))
+            {
+                playerRigidbody.linearVelocity = Vector2.zero;
+            }
+
+            bossHealth?.ResetHealth();
+            rewardShaper?.ResetBuffer();
+            LastProvenanceReward = 0f;
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -154,6 +197,7 @@ namespace TerraSilente.Boss
             }
 
             behaviorParameters.BehaviorName = "BossAgent";
+            behaviorParameters.BehaviorType = BehaviorType.Default;
             behaviorParameters.BrainParameters.VectorObservationSize = ObservationCount;
             behaviorParameters.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(DiscreteActionCount);
         }
