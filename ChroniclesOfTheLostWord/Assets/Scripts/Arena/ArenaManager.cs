@@ -1,5 +1,6 @@
 using System;
 using TerraSilente.Boss;
+using TerraSilente.Player;
 using TerraSilente.Provenance;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -11,12 +12,14 @@ namespace TerraSilente.Arena
     {
         [SerializeField] private ProvenanceLogger provenanceLogger;
         [SerializeField] private BossHealth bossHealth;
+        [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private GameMetrics gameMetrics;
         [SerializeField] private bool startOnSceneStart = true;
         [SerializeField] private string sessionIdPrefix = "arena";
         [SerializeField] private bool enableDebugVictoryHotkey = true;
 
         private bool isSubscribedToBossDeath;
+        private bool isSubscribedToPlayerDeath;
 
         public bool IsFightActive { get; private set; }
 
@@ -31,11 +34,13 @@ namespace TerraSilente.Arena
         {
             ResolveReferences();
             SubscribeToBossDeath();
+            SubscribeToPlayerDeath();
         }
 
         private void OnDisable()
         {
             UnsubscribeFromBossDeath();
+            UnsubscribeFromPlayerDeath();
         }
 
         private void Start()
@@ -60,14 +65,17 @@ namespace TerraSilente.Arena
             StartFight(BuildSessionId());
         }
 
-        public void BindDependencies(ProvenanceLogger newProvenanceLogger, BossHealth newBossHealth)
+        public void BindDependencies(ProvenanceLogger newProvenanceLogger, BossHealth newBossHealth, PlayerHealth newPlayerHealth = null)
         {
             UnsubscribeFromBossDeath();
+            UnsubscribeFromPlayerDeath();
 
             provenanceLogger = newProvenanceLogger;
             bossHealth = newBossHealth;
+            playerHealth = newPlayerHealth;
 
             SubscribeToBossDeath();
+            SubscribeToPlayerDeath();
         }
 
         public void BindMetrics(GameMetrics newGameMetrics)
@@ -138,6 +146,16 @@ namespace TerraSilente.Arena
             EndFight("victory", bossRemainingHealth: 0f);
         }
 
+        private void HandlePlayerDeath()
+        {
+            if (!IsFightActive)
+            {
+                return;
+            }
+
+            EndFight("defeat", playerRemainingHealth: 0f, bossRemainingHealth: bossHealth != null ? bossHealth.CurrentHealth : 0f);
+        }
+
         private void ResolveReferences()
         {
             if (provenanceLogger == null)
@@ -148,6 +166,11 @@ namespace TerraSilente.Arena
             if (bossHealth == null)
             {
                 bossHealth = FindFirstObjectByType<BossHealth>();
+            }
+
+            if (playerHealth == null)
+            {
+                playerHealth = FindFirstObjectByType<PlayerHealth>();
             }
 
             if (gameMetrics == null)
@@ -167,6 +190,17 @@ namespace TerraSilente.Arena
             isSubscribedToBossDeath = true;
         }
 
+        private void SubscribeToPlayerDeath()
+        {
+            if (isSubscribedToPlayerDeath || playerHealth == null)
+            {
+                return;
+            }
+
+            playerHealth.OnPlayerDeath += HandlePlayerDeath;
+            isSubscribedToPlayerDeath = true;
+        }
+
         private void UnsubscribeFromBossDeath()
         {
             if (!isSubscribedToBossDeath || bossHealth == null)
@@ -176,6 +210,17 @@ namespace TerraSilente.Arena
 
             bossHealth.OnBossDeath -= HandleBossDeath;
             isSubscribedToBossDeath = false;
+        }
+
+        private void UnsubscribeFromPlayerDeath()
+        {
+            if (!isSubscribedToPlayerDeath || playerHealth == null)
+            {
+                return;
+            }
+
+            playerHealth.OnPlayerDeath -= HandlePlayerDeath;
+            isSubscribedToPlayerDeath = false;
         }
 
         private string BuildSessionId()

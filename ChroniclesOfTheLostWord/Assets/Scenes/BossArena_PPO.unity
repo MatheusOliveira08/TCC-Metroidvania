@@ -133,6 +133,7 @@ GameObject:
   - component: {fileID: 129242309}
   - component: {fileID: 129242308}
   - component: {fileID: 129242307}
+  - component: {fileID: 129242310}
   m_Layer: 0
   m_Name: Elian
   m_TagString: Untagged
@@ -329,6 +330,20 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &129242310
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 129242302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bb2d6829e0d4ef5a68f7d68f69b7c2f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: TerraSilente.Player::TerraSilente.Player.PlayerHealth
+  maxHealth: 100
+  currentHealth: 0
 --- !u!1 &303956738
 GameObject:
   m_ObjectHideFlags: 0
@@ -781,6 +796,7 @@ GameObject:
   - component: {fileID: 720000002}
   - component: {fileID: 720000003}
   - component: {fileID: 720000004}
+  - component: {fileID: 720000005}
   m_Layer: 0
   m_Name: EvaluationSystems
   m_TagString: Untagged
@@ -817,6 +833,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: TerraSilente.Provenance::TerraSilente.Provenance.ProvenanceLogger
   playerController: {fileID: 129242308}
   playerCombat: {fileID: 129242307}
+  playerHealth: {fileID: 129242310}
   bossHealth: {fileID: 607824805}
   bossFsmController: {fileID: 0}
   bossTransform: {fileID: 607824803}
@@ -839,6 +856,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: TerraSilente.Arena::TerraSilente.Arena.ArenaManager
   provenanceLogger: {fileID: 720000002}
   bossHealth: {fileID: 607824805}
+  playerHealth: {fileID: 129242310}
   gameMetrics: {fileID: 720000004}
   startOnSceneStart: 1
   sessionIdPrefix: ppo-evaluation
@@ -860,9 +878,29 @@ MonoBehaviour:
   outputFileName: boss_evaluation_metrics.csv
   playerController: {fileID: 129242308}
   playerCombat: {fileID: 129242307}
+  playerHealth: {fileID: 129242310}
   bossHealth: {fileID: 607824805}
   bossFsmController: {fileID: 0}
   bossAgent: {fileID: 607824806}
+--- !u!114 &720000005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 720000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88ce08a2879a40648ff45bf542fef45f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: TerraSilente.Arena::TerraSilente.Arena.BossAttackDamage
+  playerHealth: {fileID: 129242310}
+  attackOrigin: {fileID: 607824803}
+  bossFsmController: {fileID: 0}
+  bossAgent: {fileID: 607824806}
+  damageAmount: 10
+  attackRange: 1.25
+  damageCooldown: 0.8
 --- !u!1 &748458446
 GameObject:
   m_ObjectHideFlags: 0

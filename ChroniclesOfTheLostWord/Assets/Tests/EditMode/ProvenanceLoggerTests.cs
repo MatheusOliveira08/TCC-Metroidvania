@@ -216,6 +216,25 @@ namespace TerraSilente.Tests.Provenance
         }
 
         [Test]
+        public void CombatEvents_WhenPlayerHealthTakesDamage_ShouldLogPlayerDamageTakenFromRealEvent()
+        {
+            playerObject = new GameObject("Player Health Provenance Test");
+            var playerHealth = playerObject.AddComponent<PlayerHealth>();
+            playerHealth.ResetHealth();
+            RecreateLoggerAfterCombatObjects(null, null, null, playerHealth);
+            logger.StartSession("session-player-health-damage");
+            var sessionStartEventId = logger.Graph.Events[0].EventId;
+
+            playerHealth.TakeDamage(12f);
+
+            Assert.That(logger.Graph.Events, Has.Count.EqualTo(2));
+            Assert.That(logger.Graph.Events[1].ActorId, Is.EqualTo("Player"));
+            Assert.That(logger.Graph.Events[1].ActionType, Is.EqualTo("PlayerDamageTaken"));
+            Assert.That(logger.Graph.Events[1].ParentEventId, Is.EqualTo(sessionStartEventId));
+            Assert.That(logger.Graph.Events[1].Value, Is.EqualTo(12f));
+        }
+
+        [Test]
         public void PlayerDash_WhenPlayerControllerRaisesDash_ShouldLogPlayerDashFromRealEvent()
         {
             var playerController = CreatePlayerController();
@@ -324,14 +343,14 @@ namespace TerraSilente.Tests.Provenance
             return bossHealth;
         }
 
-        private void RecreateLoggerAfterCombatObjects(PlayerCombat playerCombat, BossHealth bossHealth, BossFsmController bossFsm)
+        private void RecreateLoggerAfterCombatObjects(PlayerCombat playerCombat, BossHealth bossHealth, BossFsmController bossFsm, PlayerHealth playerHealth = null)
         {
             Object.DestroyImmediate(loggerObject);
             loggerObject = new GameObject("Provenance Logger Test");
             loggerObject.SetActive(false);
             logger = loggerObject.AddComponent<ProvenanceLogger>();
             logger.ExportOnSessionEnd = false;
-            logger.BindCombatSources(playerCombat, bossHealth, bossFsm);
+            logger.BindCombatSources(playerCombat, bossHealth, bossFsm, playerHealth);
             loggerObject.SetActive(true);
         }
 

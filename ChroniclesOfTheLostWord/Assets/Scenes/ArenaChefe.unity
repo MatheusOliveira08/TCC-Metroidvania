@@ -148,10 +148,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe406b79f714f694d847b844abc8ad4b, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: TerraSilente.Provenance::TerraSilente.Provenance.ProvenanceLogger
   playerController: {fileID: 1142651097}
   playerCombat: {fileID: 1142651100}
+  playerHealth: {fileID: 1142651101}
   bossHealth: {fileID: 1600000006}
   bossFsmController: {fileID: 1600000007}
   bossTransform: {fileID: 1600000002}
@@ -185,10 +186,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b3206399fe72ed84bb6f9b12eeea70ad, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: TerraSilente.Arena::TerraSilente.Arena.ArenaManager
   provenanceLogger: {fileID: 273029357}
   bossHealth: {fileID: 1600000006}
+  playerHealth: {fileID: 1142651101}
   gameMetrics: {fileID: 273029360}
   startOnSceneStart: 1
   sessionIdPrefix: arena
@@ -210,8 +212,10 @@ MonoBehaviour:
   outputFileName: boss_evaluation_metrics.csv
   playerController: {fileID: 1142651097}
   playerCombat: {fileID: 1142651100}
+  playerHealth: {fileID: 1142651101}
   bossHealth: {fileID: 1600000006}
   bossFsmController: {fileID: 1600000007}
+  bossAgent: {fileID: 0}
 --- !u!1 &461749818
 GameObject:
   m_ObjectHideFlags: 0
@@ -755,6 +759,7 @@ GameObject:
   - component: {fileID: 1142651098}
   - component: {fileID: 1142651097}
   - component: {fileID: 1142651100}
+  - component: {fileID: 1142651101}
   m_Layer: 0
   m_Name: Elian
   m_TagString: Untagged
@@ -948,6 +953,20 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   attackCooldown: 0.25
+--- !u!114 &1142651101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1142651094}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bb2d6829e0d4ef5a68f7d68f69b7c2f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: TerraSilente.Player::TerraSilente.Player.PlayerHealth
+  maxHealth: 100
+  currentHealth: 0
 --- !u!1 &1344748753
 GameObject:
   m_ObjectHideFlags: 0
@@ -993,6 +1012,7 @@ GameObject:
   - component: {fileID: 1600000005}
   - component: {fileID: 1600000006}
   - component: {fileID: 1600000007}
+  - component: {fileID: 1600000008}
   m_Layer: 0
   m_Name: Boss_FSM_Greybox
   m_TagString: Untagged
@@ -1181,6 +1201,25 @@ MonoBehaviour:
   retreatDuration: 0.45
   retreatSpeed: 1.5
   attackCooldown: 0.8
+--- !u!114 &1600000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1600000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88ce08a2879a40648ff45bf542fef45f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: TerraSilente.Arena::TerraSilente.Arena.BossAttackDamage
+  playerHealth: {fileID: 1142651101}
+  attackOrigin: {fileID: 1600000002}
+  bossFsmController: {fileID: 1600000007}
+  bossAgent: {fileID: 0}
+  damageAmount: 10
+  attackRange: 1.25
+  damageCooldown: 0.8
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

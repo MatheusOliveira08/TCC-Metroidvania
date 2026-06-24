@@ -12,6 +12,7 @@ namespace TerraSilente.Arena
         [SerializeField] private string outputFileName = GameMetricsExporter.DefaultFileName;
         [SerializeField] private global::PlayerController playerController;
         [SerializeField] private PlayerCombat playerCombat;
+        [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private BossHealth bossHealth;
         [SerializeField] private BossFsmController bossFsmController;
         [SerializeField] private BossAgent bossAgent;
@@ -48,12 +49,14 @@ namespace TerraSilente.Arena
             PlayerCombat newPlayerCombat,
             BossHealth newBossHealth,
             BossFsmController newBossFsmController,
-            BossAgent newBossAgent = null)
+            BossAgent newBossAgent = null,
+            PlayerHealth newPlayerHealth = null)
         {
             UnsubscribeFromSources();
 
             playerController = newPlayerController;
             playerCombat = newPlayerCombat;
+            playerHealth = newPlayerHealth;
             bossHealth = newBossHealth;
             bossFsmController = newBossFsmController;
             bossAgent = newBossAgent;
@@ -197,6 +200,11 @@ namespace TerraSilente.Arena
                 playerCombat = FindFirstObjectByType<PlayerCombat>();
             }
 
+            if (playerHealth == null)
+            {
+                playerHealth = FindFirstObjectByType<PlayerHealth>();
+            }
+
             if (bossHealth == null)
             {
                 bossHealth = FindFirstObjectByType<BossHealth>();
@@ -229,6 +237,11 @@ namespace TerraSilente.Arena
             if (playerCombat != null)
             {
                 playerCombat.OnPlayerAttackPerformed += RecordPlayerAttack;
+            }
+
+            if (playerHealth != null)
+            {
+                playerHealth.OnPlayerDamageTaken += RecordPlayerDamageTaken;
             }
 
             if (bossHealth != null)
@@ -265,6 +278,11 @@ namespace TerraSilente.Arena
             if (playerCombat != null)
             {
                 playerCombat.OnPlayerAttackPerformed -= RecordPlayerAttack;
+            }
+
+            if (playerHealth != null)
+            {
+                playerHealth.OnPlayerDamageTaken -= RecordPlayerDamageTaken;
             }
 
             if (bossHealth != null)

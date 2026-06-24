@@ -253,6 +253,152 @@ namespace TerraSilente.Tests.Arena
         }
 
         [Test]
+        public void PlayerHealth_WhenDamageReachesZero_ShouldRaiseDamageAndDeathEvents()
+        {
+            var playerObject = new GameObject("Player Health Test");
+
+            try
+            {
+                var playerHealth = playerObject.AddComponent<PlayerHealth>();
+                playerHealth.ResetHealth();
+                var damageTaken = 0f;
+                var deathEvents = 0;
+                playerHealth.OnPlayerDamageTaken += amount => damageTaken += amount;
+                playerHealth.OnPlayerDeath += () => deathEvents++;
+
+                playerHealth.TakeDamage(35f);
+                playerHealth.TakeDamage(100f);
+                playerHealth.TakeDamage(10f);
+
+                Assert.That(playerHealth.IsDead, Is.True);
+                Assert.That(playerHealth.CurrentHealth, Is.Zero);
+                Assert.That(damageTaken, Is.EqualTo(100f));
+                Assert.That(deathEvents, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void BossAttackDamage_WhenAppliedDirectly_ShouldDamagePlayerInRangeAndRespectCooldown()
+        {
+            var bossObject = new GameObject("Boss Damage Dealer Test");
+            var playerObject = new GameObject("Player Damage Target Test");
+
+            try
+            {
+                bossObject.transform.position = Vector3.zero;
+                playerObject.transform.position = new Vector3(1f, 0f, 0f);
+                var playerHealth = playerObject.AddComponent<PlayerHealth>();
+                playerHealth.ResetHealth();
+                var bossAttackDamage = bossObject.AddComponent<BossAttackDamage>();
+                bossAttackDamage.BindSources(playerHealth, bossObject.transform);
+
+                Assert.That(bossAttackDamage.TryApplyDamage(0f), Is.True);
+                Assert.That(playerHealth.CurrentHealth, Is.EqualTo(90f));
+                Assert.That(bossAttackDamage.TryApplyDamage(0.4f), Is.False);
+                Assert.That(playerHealth.CurrentHealth, Is.EqualTo(90f));
+                Assert.That(bossAttackDamage.TryApplyDamage(0.8f), Is.True);
+                Assert.That(playerHealth.CurrentHealth, Is.EqualTo(80f));
+
+                playerObject.transform.position = new Vector3(5f, 0f, 0f);
+
+                Assert.That(bossAttackDamage.TryApplyDamage(1.6f), Is.False);
+                Assert.That(playerHealth.CurrentHealth, Is.EqualTo(80f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(bossObject);
+                Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void BossAttackDamage_WhenFsmOrPpoAttackEventsFire_ShouldDamagePlayer()
+        {
+            var playerObject = new GameObject("Player Boss Event Damage Test");
+            var fsmBossObject = new GameObject("FSM Boss Damage Event Test");
+            var ppoBossObject = new GameObject("PPO Boss Damage Event Test");
+
+            try
+            {
+                playerObject.transform.position = Vector3.zero;
+                var playerHealth = playerObject.AddComponent<PlayerHealth>();
+                playerHealth.ResetHealth();
+
+                fsmBossObject.transform.position = new Vector3(0.5f, 0f, 0f);
+                fsmBossObject.AddComponent<Rigidbody2D>();
+                var fsmBossHealth = fsmBossObject.AddComponent<BossHealth>();
+                fsmBossHealth.ResetHealth();
+                var bossFsm = fsmBossObject.AddComponent<BossFsmController>();
+                bossFsm.BindDependencies(playerObject.transform, fsmBossHealth);
+                var fsmAttackDamage = fsmBossObject.AddComponent<BossAttackDamage>();
+                fsmAttackDamage.BindSources(playerHealth, fsmBossObject.transform, bossFsm);
+
+                bossFsm.Tick(0.02f);
+
+                Assert.That(playerHealth.CurrentHealth, Is.EqualTo(90f));
+
+                ppoBossObject.transform.position = new Vector3(0.5f, 0f, 0f);
+                ppoBossObject.AddComponent<Rigidbody2D>();
+                ppoBossObject.AddComponent<BoxCollider2D>();
+                var ppoBossHealth = ppoBossObject.AddComponent<BossHealth>();
+                ppoBossHealth.ResetHealth();
+                var bossAgent = ppoBossObject.AddComponent<BossAgent>();
+                var ppoAttackDamage = ppoBossObject.AddComponent<BossAttackDamage>();
+                ppoAttackDamage.BindSources(playerHealth, ppoBossObject.transform, null, bossAgent);
+
+                bossAgent.ApplyDiscreteAction(BossAgent.AttackMeleeAction);
+
+                Assert.That(playerHealth.CurrentHealth, Is.EqualTo(80f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(fsmBossObject);
+                Object.DestroyImmediate(ppoBossObject);
+            }
+        }
+
+        [Test]
+        public void ArenaManager_WhenPlayerDies_ShouldEndSessionAsDefeatAndExportPlayerDamage()
+        {
+            var outputDirectory = Path.Combine(Application.temporaryCachePath, "arena-player-defeat-test");
+            DeleteDirectoryIfExists(outputDirectory);
+            var metricsObject = new GameObject("Arena Player Defeat Metrics Test");
+            var playerObject = new GameObject("Arena Player Defeat Health Test");
+
+            try
+            {
+                var playerHealth = playerObject.AddComponent<PlayerHealth>();
+                playerHealth.ResetHealth();
+                var metrics = metricsObject.AddComponent<GameMetrics>();
+                metrics.Configure("FSM", outputDirectory);
+                metrics.BindSources(null, null, bossHealth, null, null, playerHealth);
+                arenaManager.BindMetrics(metrics);
+                arenaManager.BindDependencies(provenanceLogger, bossHealth, playerHealth);
+                arenaManager.StartFight("arena-player-defeat");
+
+                playerHealth.TakeDamage(100f);
+
+                var csvPath = Path.Combine(outputDirectory, GameMetricsExporter.DefaultFileName);
+                var lines = File.ReadAllLines(csvPath);
+                Assert.That(arenaManager.IsFightActive, Is.False);
+                Assert.That(provenanceLogger.Graph.Session.Result, Is.EqualTo("defeat"));
+                Assert.That(lines[1], Does.StartWith("arena-player-defeat,FSM,defeat,"));
+                Assert.That(lines[1], Does.Contain(",100,"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(metricsObject);
+                Object.DestroyImmediate(playerObject);
+                DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        [Test]
         public void GameMetrics_WhenCombatSourcesEmitEvents_ShouldExportRecordedCombatMetrics()
         {
             var outputDirectory = Path.Combine(Application.temporaryCachePath, "game-metrics-source-test");
@@ -344,13 +490,22 @@ namespace TerraSilente.Tests.Arena
 
             var metrics = FindSingleComponent<GameMetrics>(scene);
             var manager = FindSingleComponent<ArenaManager>(scene);
+            var playerHealth = FindSingleComponent<PlayerHealth>(scene);
+            var bossAttackDamage = FindSingleComponent<BossAttackDamage>(scene);
             var serializedMetrics = new SerializedObject(metrics);
             var serializedManager = new SerializedObject(manager);
+            var serializedBossAttackDamage = new SerializedObject(bossAttackDamage);
 
             Assert.That(serializedMetrics.FindProperty("bossType").stringValue, Is.EqualTo("FSM"));
             Assert.That(serializedMetrics.FindProperty("outputDirectory").stringValue, Is.EqualTo("TreinamentoML/evaluation_data"));
             Assert.That(serializedMetrics.FindProperty("outputFileName").stringValue, Is.EqualTo(GameMetricsExporter.DefaultFileName));
+            Assert.That(serializedMetrics.FindProperty("playerHealth").objectReferenceValue, Is.EqualTo(playerHealth));
             Assert.That(serializedManager.FindProperty("gameMetrics").objectReferenceValue, Is.EqualTo(metrics));
+            Assert.That(serializedManager.FindProperty("playerHealth").objectReferenceValue, Is.EqualTo(playerHealth));
+            Assert.That(serializedBossAttackDamage.FindProperty("playerHealth").objectReferenceValue, Is.EqualTo(playerHealth));
+            Assert.That(serializedBossAttackDamage.FindProperty("damageAmount").floatValue, Is.EqualTo(10f).Within(0.001f));
+            Assert.That(serializedBossAttackDamage.FindProperty("attackRange").floatValue, Is.EqualTo(1.25f).Within(0.001f));
+            Assert.That(serializedBossAttackDamage.FindProperty("damageCooldown").floatValue, Is.EqualTo(0.8f).Within(0.001f));
         }
 
         [Test]
@@ -362,19 +517,29 @@ namespace TerraSilente.Tests.Arena
             var manager = FindSingleComponent<ArenaManager>(scene);
             var playerController = FindSingleComponent<global::PlayerController>(scene);
             var playerCombat = FindSingleComponent<PlayerCombat>(scene);
+            var playerHealth = FindSingleComponent<PlayerHealth>(scene);
             var bossAgent = FindSingleComponent<BossAgent>(scene);
+            var bossAttackDamage = FindSingleComponent<BossAttackDamage>(scene);
             var serializedMetrics = new SerializedObject(metrics);
             var serializedManager = new SerializedObject(manager);
             var serializedPlayerCombat = new SerializedObject(playerCombat);
+            var serializedBossAttackDamage = new SerializedObject(bossAttackDamage);
 
             Assert.That(serializedMetrics.FindProperty("bossType").stringValue, Is.EqualTo("PPO"));
             Assert.That(serializedMetrics.FindProperty("outputDirectory").stringValue, Is.EqualTo("TreinamentoML/evaluation_data"));
             Assert.That(serializedMetrics.FindProperty("outputFileName").stringValue, Is.EqualTo(GameMetricsExporter.DefaultFileName));
             Assert.That(serializedMetrics.FindProperty("playerController").objectReferenceValue, Is.EqualTo(playerController));
             Assert.That(serializedMetrics.FindProperty("playerCombat").objectReferenceValue, Is.EqualTo(playerCombat));
+            Assert.That(serializedMetrics.FindProperty("playerHealth").objectReferenceValue, Is.EqualTo(playerHealth));
             Assert.That(serializedMetrics.FindProperty("bossAgent").objectReferenceValue, Is.EqualTo(bossAgent));
             Assert.That(serializedManager.FindProperty("gameMetrics").objectReferenceValue, Is.EqualTo(metrics));
+            Assert.That(serializedManager.FindProperty("playerHealth").objectReferenceValue, Is.EqualTo(playerHealth));
             Assert.That(serializedPlayerCombat.FindProperty("targetLayers").FindPropertyRelative("m_Bits").intValue, Is.Not.Zero);
+            Assert.That(serializedBossAttackDamage.FindProperty("playerHealth").objectReferenceValue, Is.EqualTo(playerHealth));
+            Assert.That(serializedBossAttackDamage.FindProperty("bossAgent").objectReferenceValue, Is.EqualTo(bossAgent));
+            Assert.That(serializedBossAttackDamage.FindProperty("damageAmount").floatValue, Is.EqualTo(10f).Within(0.001f));
+            Assert.That(serializedBossAttackDamage.FindProperty("attackRange").floatValue, Is.EqualTo(1.25f).Within(0.001f));
+            Assert.That(serializedBossAttackDamage.FindProperty("damageCooldown").floatValue, Is.EqualTo(0.8f).Within(0.001f));
             Assert.That(FindComponents<PlayerDummyAI>(scene), Is.Empty);
         }
 

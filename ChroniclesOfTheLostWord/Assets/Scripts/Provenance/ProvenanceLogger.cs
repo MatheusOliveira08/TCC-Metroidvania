@@ -9,6 +9,7 @@ namespace TerraSilente.Provenance
     {
         [SerializeField] private global::PlayerController playerController;
         [SerializeField] private PlayerCombat playerCombat;
+        [SerializeField] private PlayerHealth playerHealth;
         [SerializeField] private BossHealth bossHealth;
         [SerializeField] private BossFsmController bossFsmController;
         [SerializeField] private Transform bossTransform;
@@ -58,11 +59,16 @@ namespace TerraSilente.Provenance
             UnsubscribeFromSources();
         }
 
-        public void BindCombatSources(PlayerCombat newPlayerCombat, BossHealth newBossHealth, BossFsmController newBossFsmController = null)
+        public void BindCombatSources(
+            PlayerCombat newPlayerCombat,
+            BossHealth newBossHealth,
+            BossFsmController newBossFsmController = null,
+            PlayerHealth newPlayerHealth = null)
         {
             UnsubscribeFromSources();
 
             playerCombat = newPlayerCombat;
+            playerHealth = newPlayerHealth;
             bossHealth = newBossHealth;
             bossFsmController = newBossFsmController;
 
@@ -233,6 +239,11 @@ namespace TerraSilente.Provenance
                 playerCombat = FindFirstObjectByType<PlayerCombat>();
             }
 
+            if (playerHealth == null)
+            {
+                playerHealth = FindFirstObjectByType<PlayerHealth>();
+            }
+
             if (bossHealth == null)
             {
                 bossHealth = FindFirstObjectByType<BossHealth>();
@@ -275,6 +286,12 @@ namespace TerraSilente.Provenance
                 playerController.OnPlayerAttack += LogPlayerAttack;
             }
 
+            if (playerHealth != null)
+            {
+                playerHealth.OnPlayerDamageTaken += LogPlayerDamageTaken;
+                hasSubscription = true;
+            }
+
             if (bossHealth != null)
             {
                 bossHealth.OnBossDamageTaken += LogBossDamageTakenFromCombat;
@@ -308,6 +325,11 @@ namespace TerraSilente.Provenance
             if (playerCombat != null)
             {
                 playerCombat.OnPlayerAttackPerformed -= LogPlayerAttack;
+            }
+
+            if (playerHealth != null)
+            {
+                playerHealth.OnPlayerDamageTaken -= LogPlayerDamageTaken;
             }
 
             if (bossHealth != null)
@@ -372,6 +394,11 @@ namespace TerraSilente.Provenance
             if (playerController != null)
             {
                 return playerController.transform.position;
+            }
+
+            if (playerHealth != null)
+            {
+                return playerHealth.transform.position;
             }
 
             return transform.position;
