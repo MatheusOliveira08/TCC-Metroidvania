@@ -4,7 +4,9 @@
     "references": [
         "TerraSilente.Provenance",
         "TerraSilente.Boss",
+        "TerraSilente.BossAgent",
         "TerraSilente.Player",
+        "Unity.ML-Agents",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

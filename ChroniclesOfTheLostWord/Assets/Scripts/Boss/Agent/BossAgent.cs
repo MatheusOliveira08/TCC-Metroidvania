@@ -1,3 +1,4 @@
+using System;
 using TerraSilente.Provenance;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
@@ -9,6 +10,7 @@ namespace TerraSilente.Boss
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Rigidbody2D))]
+    [RequireComponent(typeof(BoxCollider2D))]
     [RequireComponent(typeof(BehaviorParameters))]
     [RequireComponent(typeof(DecisionRequester))]
     public class BossAgent : Agent
@@ -29,6 +31,7 @@ namespace TerraSilente.Boss
         private const string PlayerJumpActionType = "PlayerJump";
         private const string PlayerAttackActionType = "PlayerAttack";
         private const string PlayerDashActionType = "PlayerDash";
+        private const float GroundedCheckDistance = 0.08f;
 
         [SerializeField] private Transform playerTarget;
         [SerializeField] private Transform bossSpawnPoint;
@@ -40,11 +43,18 @@ namespace TerraSilente.Boss
         [SerializeField] private float dashSpeed = 8f;
         [SerializeField] private int decisionPeriod = DefaultDecisionPeriod;
         [SerializeField] private int maxEpisodeSteps = DefaultMaxEpisodeSteps;
+        [SerializeField] private SpriteRenderer actionFeedbackRenderer;
+        [SerializeField] private Color attackFeedbackColor = new(1f, 0.35f, 0.2f, 1f);
+        [SerializeField] private Color dashFeedbackColor = new(0.2f, 0.85f, 1f, 1f);
         [SerializeField] private bool applyEditorTrainingSettings;
         [SerializeField] private float editorTrainingTimeScale = DefaultEditorTrainingTimeScale;
 
         private Rigidbody2D rb;
+        private BoxCollider2D boxCollider;
         private float lastHorizontalDirection = 1f;
+        private readonly RaycastHit2D[] groundHits = new RaycastHit2D[4];
+
+        public event Action<int> OnDiscreteActionApplied;
 
         public float LastProvenanceReward { get; private set; }
 
@@ -149,6 +159,7 @@ namespace TerraSilente.Boss
         {
             ResolveReferences();
             LastProvenanceReward = 0f;
+            var recordedActionIndex = actionIndex;
 
             switch (actionIndex)
             {
@@ -161,22 +172,30 @@ namespace TerraSilente.Boss
                     lastHorizontalDirection = 1f;
                     break;
                 case JumpAction:
-                    SetVerticalVelocity(jumpVelocity);
+                    if (IsGrounded())
+                    {
+                        SetVerticalVelocity(jumpVelocity);
+                    }
+
                     LastProvenanceReward = RecordProvenanceAction(PlayerJumpActionType);
                     break;
                 case AttackMeleeAction:
                     SetHorizontalVelocity(0f);
+                    ShowPassiveActionFeedback("Boss PPO Attack", attackFeedbackColor);
                     LastProvenanceReward = RecordProvenanceAction(PlayerAttackActionType);
                     break;
                 case DashAction:
                     SetHorizontalVelocity(lastHorizontalDirection * dashSpeed);
+                    ShowPassiveActionFeedback("Boss PPO Dash", dashFeedbackColor);
                     LastProvenanceReward = RecordProvenanceAction(PlayerDashActionType);
                     break;
                 default:
+                    recordedActionIndex = IdleAction;
                     SetHorizontalVelocity(0f);
                     break;
             }
 
+            OnDiscreteActionApplied?.Invoke(recordedActionIndex);
             return LastProvenanceReward;
         }
 
@@ -187,6 +206,11 @@ namespace TerraSilente.Boss
                 rb = GetComponent<Rigidbody2D>();
             }
 
+            if (boxCollider == null)
+            {
+                boxCollider = GetComponent<BoxCollider2D>();
+            }
+
             if (bossHealth == null)
             {
                 bossHealth = GetComponent<BossHealth>();
@@ -195,6 +219,11 @@ namespace TerraSilente.Boss
             if (rewardShaper == null)
             {
                 rewardShaper = GetComponent<ProvenanceRewardShaper>();
+            }
+
+            if (actionFeedbackRenderer == null)
+            {
+                actionFeedbackRenderer = GetComponent<SpriteRenderer>();
             }
         }
 
@@ -213,7 +242,7 @@ namespace TerraSilente.Boss
 
         private void ConfigureTrainingRuntime()
         {
-            MaxStep = Mathf.Max(1, maxEpisodeSteps);
+            MaxStep = Mathf.Max(0, maxEpisodeSteps);
 
             var decisionRequester = GetComponent<DecisionRequester>();
             if (decisionRequester == null)
@@ -243,9 +272,39 @@ namespace TerraSilente.Boss
             return rewardShaper != null ? rewardShaper.RecordAction(actionType) : 0f;
         }
 
+        private void ShowPassiveActionFeedback(string message, Color feedbackColor)
+        {
+            if (actionFeedbackRenderer != null)
+            {
+                actionFeedbackRenderer.color = feedbackColor;
+            }
+
+            Debug.Log(message, this);
+        }
+
         private bool IsGrounded()
         {
-            return rb == null || Mathf.Abs(rb.linearVelocity.y) <= 0.001f;
+            if (boxCollider == null)
+            {
+                return false;
+            }
+
+            var contactFilter = new ContactFilter2D
+            {
+                useTriggers = false
+            };
+            contactFilter.SetLayerMask(Physics2D.DefaultRaycastLayers);
+
+            var hitCount = boxCollider.Cast(Vector2.down, contactFilter, groundHits, GroundedCheckDistance);
+            for (var i = 0; i < hitCount; i++)
+            {
+                if (groundHits[i].collider != null && groundHits[i].collider != boxCollider)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void SetHorizontalVelocity(float velocityX)

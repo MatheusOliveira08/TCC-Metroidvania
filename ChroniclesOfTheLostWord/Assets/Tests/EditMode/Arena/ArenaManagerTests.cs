@@ -299,6 +299,45 @@ namespace TerraSilente.Tests.Arena
         }
 
         [Test]
+        public void GameMetrics_WhenPpoAgentAppliesActions_ShouldExportRecordedPpoActionMetrics()
+        {
+            var outputDirectory = Path.Combine(Application.temporaryCachePath, "game-metrics-ppo-actions-test");
+            DeleteDirectoryIfExists(outputDirectory);
+
+            var bossObject = new GameObject("Boss PPO Metrics Source");
+            var metricsObject = new GameObject("Game Metrics PPO Source Test");
+
+            try
+            {
+                bossObject.AddComponent<BossHealth>();
+                var bossAgent = bossObject.AddComponent<BossAgent>();
+
+                var metrics = metricsObject.AddComponent<GameMetrics>();
+                metrics.Configure("PPO", outputDirectory);
+                metrics.BindSources(null, null, bossObject.GetComponent<BossHealth>(), null, bossAgent);
+                metrics.BeginSession("ppo-source-session", 0f);
+
+                bossAgent.ApplyDiscreteAction(BossAgent.IdleAction);
+                bossAgent.ApplyDiscreteAction(BossAgent.MoveLeftAction);
+                bossAgent.ApplyDiscreteAction(BossAgent.MoveRightAction);
+                bossAgent.ApplyDiscreteAction(BossAgent.JumpAction);
+                bossAgent.ApplyDiscreteAction(BossAgent.AttackMeleeAction);
+                bossAgent.ApplyDiscreteAction(BossAgent.DashAction);
+
+                var csvPath = metrics.EndSession("victory", 3f, 12);
+                var lines = File.ReadAllLines(csvPath);
+
+                Assert.That(lines[1], Is.EqualTo("ppo-source-session,PPO,victory,0,3,3,12,0,0,0,0,0,1,1,1,1,1,1,1"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(metricsObject);
+                Object.DestroyImmediate(bossObject);
+                DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        [Test]
         public void ArenaChefeScene_ShouldContainGameMetricsConfiguredForFsmEvaluation()
         {
             var scene = EditorSceneManager.OpenScene("Assets/Scenes/ArenaChefe.unity", OpenSceneMode.Single);
@@ -321,13 +360,90 @@ namespace TerraSilente.Tests.Arena
 
             var metrics = FindSingleComponent<GameMetrics>(scene);
             var manager = FindSingleComponent<ArenaManager>(scene);
+            var playerController = FindSingleComponent<global::PlayerController>(scene);
+            var playerCombat = FindSingleComponent<PlayerCombat>(scene);
+            var bossAgent = FindSingleComponent<BossAgent>(scene);
             var serializedMetrics = new SerializedObject(metrics);
             var serializedManager = new SerializedObject(manager);
+            var serializedPlayerCombat = new SerializedObject(playerCombat);
 
             Assert.That(serializedMetrics.FindProperty("bossType").stringValue, Is.EqualTo("PPO"));
             Assert.That(serializedMetrics.FindProperty("outputDirectory").stringValue, Is.EqualTo("TreinamentoML/evaluation_data"));
             Assert.That(serializedMetrics.FindProperty("outputFileName").stringValue, Is.EqualTo(GameMetricsExporter.DefaultFileName));
+            Assert.That(serializedMetrics.FindProperty("playerController").objectReferenceValue, Is.EqualTo(playerController));
+            Assert.That(serializedMetrics.FindProperty("playerCombat").objectReferenceValue, Is.EqualTo(playerCombat));
+            Assert.That(serializedMetrics.FindProperty("bossAgent").objectReferenceValue, Is.EqualTo(bossAgent));
             Assert.That(serializedManager.FindProperty("gameMetrics").objectReferenceValue, Is.EqualTo(metrics));
+            Assert.That(serializedPlayerCombat.FindProperty("targetLayers").FindPropertyRelative("m_Bits").intValue, Is.Not.Zero);
+            Assert.That(FindComponents<PlayerDummyAI>(scene), Is.Empty);
+        }
+
+        [TestCase("Assets/Scenes/ArenaChefe.unity", "Chao")]
+        [TestCase("Assets/Scenes/BossArena_PPO.unity", "TrainingGround")]
+        public void EvaluationScenes_ShouldHaveSafeArenaBounds(string scenePath, string groundName)
+        {
+            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+            var ground = FindGameObject(scene, groundName);
+            var leftBoundary = FindGameObject(scene, "LeftArenaBoundary");
+            var rightBoundary = FindGameObject(scene, "RightArenaBoundary");
+
+            Assert.That(ground, Is.Not.Null);
+            Assert.That(ground.transform.localScale.x, Is.GreaterThanOrEqualTo(45f));
+            AssertArenaBoundary(leftBoundary, -22.5f);
+            AssertArenaBoundary(rightBoundary, 22.5f);
+        }
+
+        [Test]
+        public void HorizontalCameraFollow_WhenTargetMoves_ShouldFollowOnlyHorizontalAxis()
+        {
+            var followType = System.Type.GetType("TerraSilente.Arena.HorizontalCameraFollow, TerraSilente.Arena");
+            Assert.That(followType, Is.Not.Null);
+
+            var cameraObject = new GameObject("Horizontal Camera Follow Test");
+            var targetObject = new GameObject("Camera Follow Target Test");
+
+            try
+            {
+                cameraObject.transform.position = new Vector3(1f, 2f, -10f);
+                targetObject.transform.position = new Vector3(7f, -3f, 0f);
+
+                var follow = cameraObject.AddComponent(followType);
+                var serializedFollow = new SerializedObject(follow);
+                serializedFollow.FindProperty("target").objectReferenceValue = targetObject.transform;
+                serializedFollow.ApplyModifiedPropertiesWithoutUndo();
+
+                var followMethod = followType.GetMethod("FollowTarget");
+                Assert.That(followMethod, Is.Not.Null);
+                followMethod.Invoke(follow, null);
+
+                Assert.That(cameraObject.transform.position.x, Is.EqualTo(7f).Within(0.001f));
+                Assert.That(cameraObject.transform.position.y, Is.EqualTo(2f).Within(0.001f));
+                Assert.That(cameraObject.transform.position.z, Is.EqualTo(-10f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(targetObject);
+            }
+        }
+
+        [TestCase("Assets/Scenes/ArenaChefe.unity")]
+        [TestCase("Assets/Scenes/BossArena_PPO.unity")]
+        public void EvaluationScenes_ShouldHaveCameraFollowingElianHorizontally(string scenePath)
+        {
+            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            var cameraObject = FindGameObject(scene, "Main Camera");
+            var playerObject = FindGameObject(scene, "Elian");
+
+            Assert.That(cameraObject, Is.Not.Null);
+            Assert.That(playerObject, Is.Not.Null);
+
+            var cameraFollow = cameraObject.GetComponent("HorizontalCameraFollow");
+            Assert.That(cameraFollow, Is.Not.Null);
+
+            var serializedFollow = new SerializedObject(cameraFollow);
+            Assert.That(serializedFollow.FindProperty("target").objectReferenceValue, Is.EqualTo(playerObject.transform));
         }
 
         private static void DeleteDirectoryIfExists(string outputDirectory)
@@ -340,12 +456,34 @@ namespace TerraSilente.Tests.Arena
 
         private static T FindSingleComponent<T>(Scene scene) where T : Component
         {
-            var components = scene.GetRootGameObjects()
-                .SelectMany(root => root.GetComponentsInChildren<T>(true))
-                .ToArray();
+            var components = FindComponents<T>(scene);
 
             Assert.That(components, Has.Length.EqualTo(1));
             return components[0];
+        }
+
+        private static T[] FindComponents<T>(Scene scene) where T : Component
+        {
+            return scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<T>(true))
+                .ToArray();
+        }
+
+        private static GameObject FindGameObject(Scene scene, string objectName)
+        {
+            return scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<Transform>(true))
+                .FirstOrDefault(transform => transform.name == objectName)
+                ?.gameObject;
+        }
+
+        private static void AssertArenaBoundary(GameObject boundary, float expectedPositionX)
+        {
+            Assert.That(boundary, Is.Not.Null);
+            Assert.That(boundary.GetComponent<BoxCollider2D>(), Is.Not.Null);
+            Assert.That(boundary.GetComponent<SpriteRenderer>(), Is.Null);
+            Assert.That(boundary.transform.position.x, Is.EqualTo(expectedPositionX).Within(0.001f));
+            Assert.That(boundary.transform.localScale.y, Is.GreaterThanOrEqualTo(8f));
         }
     }
 }

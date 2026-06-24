@@ -14,6 +14,7 @@ namespace TerraSilente.Arena
         [SerializeField] private PlayerCombat playerCombat;
         [SerializeField] private BossHealth bossHealth;
         [SerializeField] private BossFsmController bossFsmController;
+        [SerializeField] private BossAgent bossAgent;
 
         private GameMetricsSession currentSession;
         private bool isSessionActive;
@@ -46,7 +47,8 @@ namespace TerraSilente.Arena
             global::PlayerController newPlayerController,
             PlayerCombat newPlayerCombat,
             BossHealth newBossHealth,
-            BossFsmController newBossFsmController)
+            BossFsmController newBossFsmController,
+            BossAgent newBossAgent = null)
         {
             UnsubscribeFromSources();
 
@@ -54,6 +56,7 @@ namespace TerraSilente.Arena
             playerCombat = newPlayerCombat;
             bossHealth = newBossHealth;
             bossFsmController = newBossFsmController;
+            bossAgent = newBossAgent;
 
             SubscribeToSources();
         }
@@ -203,6 +206,11 @@ namespace TerraSilente.Arena
             {
                 bossFsmController = FindFirstObjectByType<BossFsmController>();
             }
+
+            if (bossAgent == null)
+            {
+                bossAgent = FindFirstObjectByType<BossAgent>();
+            }
         }
 
         private void SubscribeToSources()
@@ -231,6 +239,11 @@ namespace TerraSilente.Arena
             if (bossFsmController != null)
             {
                 bossFsmController.OnBossAttackPerformed += RecordBossAttack;
+            }
+
+            if (bossAgent != null)
+            {
+                bossAgent.OnDiscreteActionApplied += RecordBossAgentAction;
             }
 
             isSubscribedToSources = true;
@@ -264,7 +277,38 @@ namespace TerraSilente.Arena
                 bossFsmController.OnBossAttackPerformed -= RecordBossAttack;
             }
 
+            if (bossAgent != null)
+            {
+                bossAgent.OnDiscreteActionApplied -= RecordBossAgentAction;
+            }
+
             isSubscribedToSources = false;
+        }
+
+        private void RecordBossAgentAction(int actionIndex)
+        {
+            switch (actionIndex)
+            {
+                case BossAgent.MoveLeftAction:
+                    RecordPpoAction(GameMetricsPpoAction.MoveLeft);
+                    break;
+                case BossAgent.MoveRightAction:
+                    RecordPpoAction(GameMetricsPpoAction.MoveRight);
+                    break;
+                case BossAgent.JumpAction:
+                    RecordPpoAction(GameMetricsPpoAction.Jump);
+                    break;
+                case BossAgent.AttackMeleeAction:
+                    RecordPpoAction(GameMetricsPpoAction.Attack);
+                    RecordBossAttack();
+                    break;
+                case BossAgent.DashAction:
+                    RecordPpoAction(GameMetricsPpoAction.Dash);
+                    break;
+                default:
+                    RecordPpoAction(GameMetricsPpoAction.Idle);
+                    break;
+            }
         }
     }
 }

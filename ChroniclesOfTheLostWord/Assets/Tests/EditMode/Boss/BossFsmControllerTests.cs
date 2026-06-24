@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using TerraSilente.Boss;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace TerraSilente.Tests.Boss
 {
@@ -9,6 +10,7 @@ namespace TerraSilente.Tests.Boss
         private GameObject bossObject;
         private GameObject playerObject;
         private Rigidbody2D bossRigidbody;
+        private SpriteRenderer bossRenderer;
         private BossHealth bossHealth;
         private BossFsmController bossFsm;
 
@@ -17,6 +19,8 @@ namespace TerraSilente.Tests.Boss
         {
             bossObject = new GameObject("Boss FSM Test");
             bossRigidbody = bossObject.AddComponent<Rigidbody2D>();
+            bossRenderer = bossObject.AddComponent<SpriteRenderer>();
+            bossRenderer.color = new Color(0.45f, 0.45f, 0.45f, 1f);
             bossHealth = bossObject.AddComponent<BossHealth>();
             bossHealth.ResetHealth();
             bossFsm = bossObject.AddComponent<BossFsmController>();
@@ -57,6 +61,35 @@ namespace TerraSilente.Tests.Boss
             Assert.That(bossFsm.CurrentState, Is.EqualTo(BossFsmState.Attack));
             Assert.That(attackEvents, Is.EqualTo(1));
             Assert.That(bossRigidbody.linearVelocity.x, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void Tick_WhenEnteringAttack_ShouldShowPassiveFeedbackAndLogAction()
+        {
+            var baseColor = bossRenderer.color;
+            bossObject.transform.position = Vector3.zero;
+            playerObject.transform.position = new Vector3(0.5f, 0f, 0f);
+
+            LogAssert.Expect(LogType.Log, "Boss FSM Attack");
+            bossFsm.Tick(0.02f);
+
+            Assert.That(bossRenderer.color, Is.Not.EqualTo(baseColor));
+        }
+
+        [Test]
+        public void Tick_WhenAttackFeedbackDurationEnds_ShouldRestoreOriginalColor()
+        {
+            var baseColor = bossRenderer.color;
+            bossObject.transform.position = Vector3.zero;
+            playerObject.transform.position = new Vector3(0.5f, 0f, 0f);
+
+            LogAssert.Expect(LogType.Log, "Boss FSM Attack");
+            bossFsm.Tick(0.02f);
+            Assert.That(bossRenderer.color, Is.Not.EqualTo(baseColor));
+
+            bossFsm.Tick(0.16f);
+
+            Assert.That(bossRenderer.color, Is.EqualTo(baseColor));
         }
 
         [Test]

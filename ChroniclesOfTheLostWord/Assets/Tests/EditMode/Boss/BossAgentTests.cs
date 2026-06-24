@@ -7,6 +7,7 @@ using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Policies;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace TerraSilente.Tests.Boss
 {
@@ -38,6 +39,7 @@ namespace TerraSilente.Tests.Boss
         private GameObject rewardObject;
         private BossAgent bossAgent;
         private BossHealth bossHealth;
+        private SpriteRenderer bossRenderer;
         private ProvenanceRewardShaper rewardShaper;
         private float originalTimeScale;
         private bool originalRunInBackground;
@@ -50,6 +52,8 @@ namespace TerraSilente.Tests.Boss
 
             bossObject = new GameObject("BossAgentTests");
             bossObject.AddComponent<Rigidbody2D>();
+            bossRenderer = bossObject.AddComponent<SpriteRenderer>();
+            bossRenderer.color = new Color(0.42f, 0.12f, 0.78f, 1f);
             bossHealth = bossObject.AddComponent<BossHealth>();
             bossHealth.ResetHealth();
 
@@ -125,6 +129,18 @@ namespace TerraSilente.Tests.Boss
         }
 
         [Test]
+        public void ConfigureRuntime_WhenMaxEpisodeStepsIsZero_ShouldDisableAutomaticEpisodeLimit()
+        {
+            var serializedAgent = new SerializedObject(bossAgent);
+            serializedAgent.FindProperty("maxEpisodeSteps").intValue = 0;
+            serializedAgent.ApplyModifiedPropertiesWithoutUndo();
+
+            bossAgent.BindDependencies(playerObject.transform, bossHealth, rewardShaper);
+
+            Assert.That(bossAgent.MaxStep, Is.Zero);
+        }
+
+        [Test]
         public void ApplyDiscreteAction_WhenActionsMatchWinningSequence_ShouldReturnProvenanceReward()
         {
             Assert.That(bossAgent.ApplyDiscreteAction(BossAgent.JumpAction), Is.Zero);
@@ -134,6 +150,37 @@ namespace TerraSilente.Tests.Boss
 
             Assert.That(reward, Is.EqualTo(2f).Within(0.001f));
             Assert.That(bossAgent.LastProvenanceReward, Is.EqualTo(2f).Within(0.001f));
+        }
+
+        [Test]
+        public void ApplyDiscreteAction_WhenJumpActionIsAppliedAwayFromGround_ShouldNotResetVerticalVelocity()
+        {
+            var bossRigidbody = bossObject.GetComponent<Rigidbody2D>();
+            bossObject.AddComponent<BoxCollider2D>();
+            bossObject.transform.position = new Vector3(0f, 5f, 0f);
+            bossRigidbody.linearVelocity = Vector2.zero;
+            Physics2D.SyncTransforms();
+
+            bossAgent.ApplyDiscreteAction(BossAgent.JumpAction);
+
+            Assert.That(bossRigidbody.linearVelocity.y, Is.EqualTo(0f).Within(0.001f));
+        }
+
+        [Test]
+        public void ApplyDiscreteAction_WhenAttackOrDash_ShouldShowPassiveFeedbackAndLogAction()
+        {
+            var baseColor = bossRenderer.color;
+
+            LogAssert.Expect(LogType.Log, "Boss PPO Attack");
+            bossAgent.ApplyDiscreteAction(BossAgent.AttackMeleeAction);
+            var attackColor = bossRenderer.color;
+
+            Assert.That(attackColor, Is.Not.EqualTo(baseColor));
+
+            LogAssert.Expect(LogType.Log, "Boss PPO Dash");
+            bossAgent.ApplyDiscreteAction(BossAgent.DashAction);
+
+            Assert.That(bossRenderer.color, Is.Not.EqualTo(attackColor));
         }
 
         [Test]

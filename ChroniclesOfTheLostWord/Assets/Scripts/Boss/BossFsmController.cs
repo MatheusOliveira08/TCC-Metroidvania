@@ -23,10 +23,16 @@ namespace TerraSilente.Boss
         [SerializeField] private float retreatDuration = 0.45f;
         [SerializeField] private float retreatSpeed = 1.5f;
         [SerializeField] private float attackCooldown = 0.8f;
+        [SerializeField] private SpriteRenderer actionFeedbackRenderer;
+        [SerializeField] private Color attackFeedbackColor = new(1f, 0.85f, 0.2f, 1f);
+        [SerializeField] private float attackFeedbackDuration = 0.15f;
 
         private Rigidbody2D rb;
         private float stateTimer;
         private float cooldownTimer;
+        private float attackFeedbackTimer;
+        private Color originalFeedbackColor;
+        private bool hasOriginalFeedbackColor;
 
         public event Action OnBossAttackPerformed;
 
@@ -55,6 +61,7 @@ namespace TerraSilente.Boss
 
             var safeDeltaTime = Mathf.Max(0f, deltaTime);
             cooldownTimer = Mathf.Max(0f, cooldownTimer - safeDeltaTime);
+            UpdateAttackFeedback(safeDeltaTime);
 
             if (bossHealth != null && bossHealth.IsDead || playerTarget == null)
             {
@@ -115,6 +122,13 @@ namespace TerraSilente.Boss
             {
                 bossHealth = GetComponent<BossHealth>();
             }
+
+            if (actionFeedbackRenderer == null)
+            {
+                actionFeedbackRenderer = GetComponent<SpriteRenderer>();
+            }
+
+            CacheOriginalFeedbackColor();
         }
 
         private void EnterIdle()
@@ -129,7 +143,44 @@ namespace TerraSilente.Boss
             stateTimer = attackDuration;
             cooldownTimer = attackCooldown;
             SetHorizontalVelocity(0f);
+            ShowPassiveAttackFeedback();
             OnBossAttackPerformed?.Invoke();
+        }
+
+        private void ShowPassiveAttackFeedback()
+        {
+            if (actionFeedbackRenderer != null)
+            {
+                actionFeedbackRenderer.color = attackFeedbackColor;
+                attackFeedbackTimer = Mathf.Max(0f, attackFeedbackDuration);
+            }
+
+            Debug.Log("Boss FSM Attack", this);
+        }
+
+        private void UpdateAttackFeedback(float deltaTime)
+        {
+            if (attackFeedbackTimer <= 0f)
+            {
+                return;
+            }
+
+            attackFeedbackTimer = Mathf.Max(0f, attackFeedbackTimer - deltaTime);
+            if (attackFeedbackTimer <= 0f && actionFeedbackRenderer != null && hasOriginalFeedbackColor)
+            {
+                actionFeedbackRenderer.color = originalFeedbackColor;
+            }
+        }
+
+        private void CacheOriginalFeedbackColor()
+        {
+            if (actionFeedbackRenderer == null || hasOriginalFeedbackColor)
+            {
+                return;
+            }
+
+            originalFeedbackColor = actionFeedbackRenderer.color;
+            hasOriginalFeedbackColor = true;
         }
 
         private void EnterRetreat()

@@ -4,8 +4,10 @@
     "references": [
         "TerraSilente.Arena",
         "TerraSilente.Boss",
+        "TerraSilente.BossAgent",
         "TerraSilente.Player",
         "TerraSilente.Provenance",
+        "Unity.ML-Agents",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

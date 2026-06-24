@@ -23,6 +23,7 @@ namespace TerraSilente.Tests.Boss
             Assert.That(prefab, Is.Not.Null);
             Assert.That(prefab.GetComponent<Rigidbody2D>(), Is.Not.Null);
             Assert.That(prefab.GetComponent<BoxCollider2D>(), Is.Not.Null);
+            Assert.That(prefab.GetComponent<SpriteRenderer>(), Is.Not.Null);
             Assert.That(prefab.GetComponent<BossHealth>(), Is.Not.Null);
             Assert.That(prefab.GetComponent<ProvenanceRewardShaper>(), Is.Not.Null);
             Assert.That(prefab.GetComponent<BossAgent>(), Is.Not.Null);
@@ -43,21 +44,21 @@ namespace TerraSilente.Tests.Boss
             Assert.That(decisionRequester.TakeActionsBetweenDecisions, Is.True);
 
             var bossAgent = prefab.GetComponent<BossAgent>();
-            Assert.That(bossAgent.MaxStep, Is.EqualTo(BossAgent.DefaultMaxEpisodeSteps));
-
             var serializedAgent = new SerializedObject(bossAgent);
+            Assert.That(serializedAgent.FindProperty("maxEpisodeSteps").intValue, Is.Zero);
             Assert.That(serializedAgent.FindProperty("applyEditorTrainingSettings").boolValue, Is.False);
             Assert.That(serializedAgent.FindProperty("editorTrainingTimeScale").floatValue, Is.EqualTo(BossAgent.DefaultEditorTrainingTimeScale).Within(0.001f));
         }
 
         [Test]
-        public void BossArenaPpoScene_ShouldContainTrainingRoots()
+        public void BossArenaPpoScene_ShouldContainEvaluationRoots()
         {
             var scene = EditorSceneManager.OpenScene(BossArenaPath, OpenSceneMode.Single);
 
             Assert.That(scene.IsValid(), Is.True);
             Assert.That(FindInScene(scene, "Boss_PPO"), Is.Not.Null);
-            Assert.That(FindInScene(scene, "PlayerDummy_Training"), Is.Not.Null);
+            Assert.That(FindInScene(scene, "Elian"), Is.Not.Null);
+            Assert.That(FindInScene(scene, "PlayerDummy_Training"), Is.Null);
             Assert.That(FindInScene(scene, "BossSpawn"), Is.Not.Null);
             Assert.That(FindInScene(scene, "PlayerSpawn"), Is.Not.Null);
 
