@@ -1,0 +1,529 @@
+{
+    "sessionId": "arena-20260624-025645-147",
+    "result": "victory",
+    "startTimestamp": 0.0,
+    "endTimestamp": 4.529306411743164,
+    "duration": 4.529306411743164,
+    "playerRemainingHealth": 0.0,
+    "bossRemainingHealth": 0.0,
+    "totalDamageDealtByPlayer": 100.0,
+    "totalDamageTakenByPlayer": 50.0,
+    "events": [
+        {
+            "eventId": "90ca90f5-9e32-4b54-aacf-cbc3bf4cec84",
+            "timestamp": 0.0,
+            "actorId": "System",
+            "actionType": "SessionStart",
+            "position": {
+                "x": 0.0,
+                "y": 0.0
+            },
+            "value": 0.0,
+            "parentEventId": ""
+        },
+        {
+            "eventId": "311fc2c5-b01f-461c-874c-63575b2b87df",
+            "timestamp": 0.9999996423721314,
+            "actorId": "Boss",
+            "actionType": "BossAttack",
+            "position": {
+                "x": 1.1320018768310547,
+                "y": -3.4100000858306886
+            },
+            "value": 0.0,
+            "parentEventId": "90ca90f5-9e32-4b54-aacf-cbc3bf4cec84"
+        },
+        {
+            "eventId": "1530d59a-2f8d-44c9-a032-824fe6283211",
+            "timestamp": 0.9999996423721314,
+            "actorId": "Player",
+            "actionType": "PlayerDamageTaken",
+            "position": {
+                "x": 0.015303373336791993,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "311fc2c5-b01f-461c-874c-63575b2b87df"
+        },
+        {
+            "eventId": "f5fb382a-4eb9-4578-8a39-5ba5fa9caf32",
+            "timestamp": 1.0692466497421265,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 0.015303373336791993,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "1530d59a-2f8d-44c9-a032-824fe6283211"
+        },
+        {
+            "eventId": "bacf46df-5db4-4290-9d3a-d6e8945797f7",
+            "timestamp": 1.0692466497421265,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 0.015303373336791993,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "f5fb382a-4eb9-4578-8a39-5ba5fa9caf32"
+        },
+        {
+            "eventId": "f7a1aef4-7f25-4f73-bfca-d729d21eb3eb",
+            "timestamp": 1.0692466497421265,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 1.1320018768310547,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "bacf46df-5db4-4290-9d3a-d6e8945797f7"
+        },
+        {
+            "eventId": "0973f93e-9482-49e0-9d81-cbc6fd84c2d8",
+            "timestamp": 1.3798811435699463,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 0.2553032338619232,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "bacf46df-5db4-4290-9d3a-d6e8945797f7"
+        },
+        {
+            "eventId": "ae725f86-f048-49dd-993a-b7cec2f7b4c7",
+            "timestamp": 1.3798811435699463,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 0.2553032338619232,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "0973f93e-9482-49e0-9d81-cbc6fd84c2d8"
+        },
+        {
+            "eventId": "176f3742-b72c-44f8-af32-f708dfe51caf",
+            "timestamp": 1.3798811435699463,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 1.3720016479492188,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "ae725f86-f048-49dd-993a-b7cec2f7b4c7"
+        },
+        {
+            "eventId": "0b76cd36-223a-426a-9268-d31434217d17",
+            "timestamp": 1.6716985702514649,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 0.7053028345108032,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "ae725f86-f048-49dd-993a-b7cec2f7b4c7"
+        },
+        {
+            "eventId": "70bd299b-1bb1-4370-8cd5-34b500936714",
+            "timestamp": 1.6716985702514649,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 0.7053028345108032,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "0b76cd36-223a-426a-9268-d31434217d17"
+        },
+        {
+            "eventId": "dfe24d31-d8e2-4da0-bfd0-f34a586a8291",
+            "timestamp": 1.6716985702514649,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 1.8220012187957764,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "70bd299b-1bb1-4370-8cd5-34b500936714"
+        },
+        {
+            "eventId": "4e1ee9db-c66f-4255-b0ff-a2569f0b759a",
+            "timestamp": 1.81999933719635,
+            "actorId": "Boss",
+            "actionType": "BossAttack",
+            "position": {
+                "x": 1.8220012187957764,
+                "y": -3.4100000858306886
+            },
+            "value": 0.0,
+            "parentEventId": "dfe24d31-d8e2-4da0-bfd0-f34a586a8291"
+        },
+        {
+            "eventId": "7d7efa11-6c31-4f12-b760-4d21d4dbde3a",
+            "timestamp": 1.81999933719635,
+            "actorId": "Player",
+            "actionType": "PlayerDamageTaken",
+            "position": {
+                "x": 0.7053028345108032,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "4e1ee9db-c66f-4255-b0ff-a2569f0b759a"
+        },
+        {
+            "eventId": "c045666c-ea18-43fb-a393-576f2b549901",
+            "timestamp": 1.9957793951034547,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 0.7053028345108032,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "7d7efa11-6c31-4f12-b760-4d21d4dbde3a"
+        },
+        {
+            "eventId": "2c3f90ba-7593-47d6-aeaf-ed7ffd57425c",
+            "timestamp": 1.9957793951034547,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 0.7053028345108032,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "c045666c-ea18-43fb-a393-576f2b549901"
+        },
+        {
+            "eventId": "0cfb3918-df57-4a5f-a53b-2f41b5824bcd",
+            "timestamp": 1.9957793951034547,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 1.8220012187957764,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "2c3f90ba-7593-47d6-aeaf-ed7ffd57425c"
+        },
+        {
+            "eventId": "fc6cd9f8-01c3-49f4-b808-0be680b09fad",
+            "timestamp": 2.329348564147949,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 1.1553024053573609,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "2c3f90ba-7593-47d6-aeaf-ed7ffd57425c"
+        },
+        {
+            "eventId": "f45cf51d-cf94-4aba-9a98-f966f844b496",
+            "timestamp": 2.329348564147949,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 1.1553024053573609,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "fc6cd9f8-01c3-49f4-b808-0be680b09fad"
+        },
+        {
+            "eventId": "53b6e0be-87a6-42ea-b638-0ab1920586e6",
+            "timestamp": 2.329348564147949,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 2.272000789642334,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "f45cf51d-cf94-4aba-9a98-f966f844b496"
+        },
+        {
+            "eventId": "68a958b2-f2ae-4a0c-abd5-68fbb3eb9ac6",
+            "timestamp": 2.6399991512298586,
+            "actorId": "Boss",
+            "actionType": "BossAttack",
+            "position": {
+                "x": 2.512000560760498,
+                "y": -3.4100000858306886
+            },
+            "value": 0.0,
+            "parentEventId": "53b6e0be-87a6-42ea-b638-0ab1920586e6"
+        },
+        {
+            "eventId": "8da2c1e1-a5a4-4947-9440-807dd173f698",
+            "timestamp": 2.6399991512298586,
+            "actorId": "Player",
+            "actionType": "PlayerDamageTaken",
+            "position": {
+                "x": 1.395302176475525,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "68a958b2-f2ae-4a0c-abd5-68fbb3eb9ac6"
+        },
+        {
+            "eventId": "a3c54834-649b-4d1a-ad08-9bd760024f8f",
+            "timestamp": 2.665515899658203,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 1.395302176475525,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "8da2c1e1-a5a4-4947-9440-807dd173f698"
+        },
+        {
+            "eventId": "9cdc5b9d-9244-4dd7-bd5a-f8062e72d421",
+            "timestamp": 2.665515899658203,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 1.395302176475525,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "a3c54834-649b-4d1a-ad08-9bd760024f8f"
+        },
+        {
+            "eventId": "a8d64aaf-6571-41b0-8061-d1cd3267a99a",
+            "timestamp": 2.665515899658203,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 2.512000560760498,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "9cdc5b9d-9244-4dd7-bd5a-f8062e72d421"
+        },
+        {
+            "eventId": "077559b1-8069-4470-b3cf-d379007f8ec5",
+            "timestamp": 3.1995391845703127,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 1.9053016901016236,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "9cdc5b9d-9244-4dd7-bd5a-f8062e72d421"
+        },
+        {
+            "eventId": "7074ab2c-f9e4-48df-8789-e29b0a147713",
+            "timestamp": 3.1995391845703127,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 1.9053016901016236,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "077559b1-8069-4470-b3cf-d379007f8ec5"
+        },
+        {
+            "eventId": "a24a7a3b-3f3c-4a58-87d2-602596677324",
+            "timestamp": 3.1995391845703127,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 3.0220000743865969,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "7074ab2c-f9e4-48df-8789-e29b0a147713"
+        },
+        {
+            "eventId": "a5c5c333-75ad-4e41-b407-a6323072f1f5",
+            "timestamp": 3.459998846054077,
+            "actorId": "Boss",
+            "actionType": "BossAttack",
+            "position": {
+                "x": 3.2019999027252199,
+                "y": -3.4100000858306886
+            },
+            "value": 0.0,
+            "parentEventId": "a24a7a3b-3f3c-4a58-87d2-602596677324"
+        },
+        {
+            "eventId": "0d17adfa-e2af-4475-896b-a622973ff590",
+            "timestamp": 3.459998846054077,
+            "actorId": "Player",
+            "actionType": "PlayerDamageTaken",
+            "position": {
+                "x": 2.085301637649536,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "a5c5c333-75ad-4e41-b407-a6323072f1f5"
+        },
+        {
+            "eventId": "f5243c80-d273-45f5-8c6f-16ffcb7eeb86",
+            "timestamp": 3.551750898361206,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 2.085301637649536,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "0d17adfa-e2af-4475-896b-a622973ff590"
+        },
+        {
+            "eventId": "11724f41-7ac2-4aa8-a8c4-b680a05ce389",
+            "timestamp": 3.551750898361206,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 2.085301637649536,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "f5243c80-d273-45f5-8c6f-16ffcb7eeb86"
+        },
+        {
+            "eventId": "3bb435d9-220b-4ef9-a973-4991435e8ba1",
+            "timestamp": 3.551750898361206,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 3.2019999027252199,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "11724f41-7ac2-4aa8-a8c4-b680a05ce389"
+        },
+        {
+            "eventId": "d9e74751-6118-4076-8adb-a721e5a02e40",
+            "timestamp": 3.880218982696533,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 2.4153013229370119,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "11724f41-7ac2-4aa8-a8c4-b680a05ce389"
+        },
+        {
+            "eventId": "6a6c941b-47a5-4a7e-bc9b-5d9bf29935d6",
+            "timestamp": 3.880218982696533,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 2.4153013229370119,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "d9e74751-6118-4076-8adb-a721e5a02e40"
+        },
+        {
+            "eventId": "dfeb6b33-dd27-4711-8b0f-9787039da654",
+            "timestamp": 3.880218982696533,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 3.5319995880126955,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "6a6c941b-47a5-4a7e-bc9b-5d9bf29935d6"
+        },
+        {
+            "eventId": "69e23324-eee4-412c-a8f9-27842987f2c7",
+            "timestamp": 4.279998302459717,
+            "actorId": "Boss",
+            "actionType": "BossAttack",
+            "position": {
+                "x": 3.8919992446899416,
+                "y": -3.4100000858306886
+            },
+            "value": 0.0,
+            "parentEventId": "dfeb6b33-dd27-4711-8b0f-9787039da654"
+        },
+        {
+            "eventId": "7c3ff509-e666-4e46-a094-5ffdb39f04b0",
+            "timestamp": 4.279998302459717,
+            "actorId": "Player",
+            "actionType": "PlayerDamageTaken",
+            "position": {
+                "x": 2.775300979614258,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "69e23324-eee4-412c-a8f9-27842987f2c7"
+        },
+        {
+            "eventId": "8b4c65f1-a28e-4686-ae80-b12f5458db02",
+            "timestamp": 4.529306411743164,
+            "actorId": "Player",
+            "actionType": "PlayerAttack",
+            "position": {
+                "x": 2.835300922393799,
+                "y": -3.4950006008148195
+            },
+            "value": 0.0,
+            "parentEventId": "7c3ff509-e666-4e46-a094-5ffdb39f04b0"
+        },
+        {
+            "eventId": "3bb98050-6e05-4445-aa64-42c085bc64e4",
+            "timestamp": 4.529306411743164,
+            "actorId": "Player",
+            "actionType": "PlayerDamageDealt",
+            "position": {
+                "x": 2.835300922393799,
+                "y": -3.4950006008148195
+            },
+            "value": 10.0,
+            "parentEventId": "8b4c65f1-a28e-4686-ae80-b12f5458db02"
+        },
+        {
+            "eventId": "002c21f3-c3d6-40d4-9e20-6136df5f0da6",
+            "timestamp": 4.529306411743164,
+            "actorId": "Boss",
+            "actionType": "BossDamageTaken",
+            "position": {
+                "x": 3.9519991874694826,
+                "y": -3.4100000858306886
+            },
+            "value": 10.0,
+            "parentEventId": "3bb98050-6e05-4445-aa64-42c085bc64e4"
+        },
+        {
+            "eventId": "5088ebeb-d77c-47e3-9215-2e9a69a4e352",
+            "timestamp": 4.529306411743164,
+            "actorId": "Boss",
+            "actionType": "BossDeath",
+            "position": {
+                "x": 3.9519991874694826,
+                "y": -3.4100000858306886
+            },
+            "value": 0.0,
+            "parentEventId": "002c21f3-c3d6-40d4-9e20-6136df5f0da6"
+        },
+        {
+            "eventId": "d70a68e9-ddce-4feb-8ea3-1da18b1cb6d3",
+            "timestamp": 4.529306411743164,
+            "actorId": "System",
+            "actionType": "SessionEnd",
+            "position": {
+                "x": 0.0,
+                "y": 0.0
+            },
+            "value": 0.0,
+            "parentEventId": "5088ebeb-d77c-47e3-9215-2e9a69a4e352"
+        }
+    ]
+}
