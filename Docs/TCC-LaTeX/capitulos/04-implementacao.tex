@@ -1,0 +1,583 @@
+% =============================================================================
+% Capítulo 4 — Implementação
+% =============================================================================
+\chapter{Implementação}
+\label{cap:implementacao}
+
+Este capítulo descreve os detalhes técnicos da implementação do
+\textit{vertical slice}, apresentando a organização do código em módulos, os
+sistemas de \textit{gameplay} que compõem o \textit{baseline} e o personagem
+jogável, o núcleo de proveniência responsável pelo registro causal das
+sessões, a integração com aprendizado por reforço via \textit{Reward Shaping}
+e \texttt{BossAgent}, e os sistemas de coleta de métricas e gerenciamento de
+sessões.
+
+% -----------------------------------------------------------------------------
+\section{Arquitetura do Código}
+\label{sec:arquitetura-codigo}
+
+A base de código foi organizada em módulos com responsabilidades claramente
+delimitadas, seguindo o princípio de separação de responsabilidades
+(\textit{Separation of Concerns}). Cada módulo encapsula uma área funcional
+do sistema e expõe sua interface pública por meio de eventos C\#
+(\texttt{Action<T>} e \textit{delegates}), minimizando o acoplamento direto
+entre componentes.
+
+A \autoref{tab:modulos} apresenta os módulos e suas responsabilidades.
+
+\begin{table}[htb]
+    \centering
+    \caption{Módulos da arquitetura e suas responsabilidades.}
+    \label{tab:modulos}
+    \begin{tabular}{l p{9.5cm}}
+        \toprule
+        \textbf{Módulo}     & \textbf{Responsabilidade} \\
+        \midrule
+        Player              & Captura de entrada, movimento, ataque, \textit{dash}
+                              e sistema de vida do personagem Elian. \\
+        \addlinespace
+        Boss FSM             & \textit{Baseline} determinístico com estados
+                              \textit{Idle}, \textit{Chase}, \textit{Attack} e
+                              \textit{Retreat}. \\
+        \addlinespace
+        Proveniência         & Registro causal de eventos em memória, exportação
+                              para JSON e módulo de \textit{Reward Shaping}. \\
+        \addlinespace
+        Boss PPO             & Agente ML-Agents com observações vetoriais, ações
+                              discretas e integração com o
+                              \texttt{ProvenanceRewardShaper}. \\
+        \addlinespace
+        Arena / Métricas     & Ciclo de vida da sessão (início, vitória, derrota),
+                              coleta de métricas e exportação CSV. \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+\subsection{Comunicação por Eventos}
+\label{subsec:comunicacao-eventos}
+
+A comunicação entre módulos é inteiramente dirigida por eventos. Cada
+componente que produz informação relevante --- como a execução de um ataque,
+a recepção de dano ou a morte de um personagem --- expõe um evento público
+(\texttt{Action} ou \texttt{Action<T>}) ao qual outros componentes podem se
+inscrever. Esse padrão arquitetural garante que:
+
+\begin{itemize}
+    \item O emissor do evento desconhece seus consumidores, eliminando
+          dependências circulares;
+    \item Novos sistemas (como o de proveniência ou o de métricas) podem ser
+          adicionados sem modificar os scripts de \textit{gameplay} existentes,
+          bastando inscrever-se nos eventos já expostos;
+    \item A testabilidade dos componentes é preservada, pois cada módulo pode
+          ser verificado isoladamente por meio de testes unitários que disparam
+          ou escutam eventos sem depender da cena completa do Unity.
+\end{itemize}
+
+Por exemplo, o evento \texttt{OnBossAttackPerformed}, emitido pelo
+\texttt{BossFsmController} quando o chefe executa um ataque, é consumido
+simultaneamente pelo \texttt{ProvenanceLogger} (para registrar o evento no
+grafo), pelo \texttt{GameMetrics} (para incrementar a contagem de ataques) e
+pelo \texttt{BossAttackDamage} (para aplicar dano ao jogador). Nenhum desses
+consumidores conhece os demais.
+
+% -----------------------------------------------------------------------------
+\section{Sistemas de Gameplay e Baseline}
+\label{sec:sistemas-gameplay}
+
+Esta seção descreve a implementação dos scripts que compõem o personagem
+jogável e o chefe \textit{baseline} controlado por FSM.
+
+\subsection{Personagem Jogável --- PlayerController}
+\label{subsec:player-controller}
+
+O \texttt{PlayerController} é o componente central do personagem Elian. Ele
+captura as entradas do jogador por meio do \textit{Unity Input System} e
+traduz essas entradas em ações físicas executadas via \texttt{Rigidbody2D}.
+A separação entre captura de \textit{input} e execução de física segue as
+diretrizes de arquitetura do projeto: as entradas são lidas no \texttt{Update}
+e as forças são aplicadas no \texttt{FixedUpdate}, garantindo consistência
+com o \textit{timestep} fixo da simulação física.
+
+As ações implementadas são:
+
+\begin{itemize}
+    \item \textbf{Movimento horizontal}: aplica velocidade ao
+          \texttt{Rigidbody2D} na direção indicada pelo eixo de entrada;
+    \item \textbf{Pulo}: aplica impulso vertical quando o personagem está em
+          contato com o solo, verificado por um \textit{ground check}
+          via \textit{raycast} ou \textit{overlap};
+    \item \textbf{Dash}: desloca o personagem horizontalmente com velocidade
+          aumentada por um curto período;
+    \item \textbf{Ataque}: delega a lógica de dano ao componente
+          \texttt{PlayerCombat}.
+\end{itemize}
+
+Cada ação emite um evento público quando executada --- por exemplo,
+\texttt{OnPlayerJumped}, \texttt{OnPlayerAttacked} e
+\texttt{OnPlayerDashed} --- permitindo que o \texttt{ProvenanceLogger}
+registre o evento sem que o \texttt{PlayerController} tenha conhecimento do
+sistema de proveniência.
+
+\subsection{Combate --- PlayerCombat e IDamageable}
+\label{subsec:player-combat}
+
+O componente \texttt{PlayerCombat} implementa a lógica de detecção e
+aplicação de dano do ataque do jogador. A cada execução de ataque, o
+componente utiliza o método \texttt{Physics2D.OverlapBoxAll} para detectar
+todos os \textit{colliders} dentro de uma área retangular posicionada à
+frente do personagem. Os objetos detectados que implementam a interface
+\texttt{IDamageable} recebem dano por meio da chamada ao método
+\texttt{TakeDamage(float amount)}.
+
+A adoção da interface \texttt{IDamageable} como contrato de dano é uma
+decisão de projeto que promove extensibilidade: qualquer entidade do jogo que
+precise receber dano --- sejam chefes, inimigos comuns ou objetos destrutíveis
+--- pode implementar essa interface sem alterar o código de ataque do jogador.
+No contexto do \textit{vertical slice}, tanto o \texttt{BossHealth} (chefe
+FSM) quanto o chefe PPO implementam \texttt{IDamageable}, garantindo que o
+mesmo sistema de combate funcione em ambas as condições experimentais.
+
+\subsection{Vida do Jogador --- PlayerHealth}
+\label{subsec:player-health}
+
+O componente \texttt{PlayerHealth} gerencia os pontos de vida do personagem
+Elian. Ele implementa a interface \texttt{IDamageable} e mantém um valor de
+vida corrente com máximo configurável (\texttt{maxHealth} = 100). Quando o
+valor de vida atinge zero, o componente emite um evento de morte que é
+consumido pelo \texttt{ArenaManager} para encerrar a sessão como derrota.
+
+Esse componente foi adicionado durante a preparação para a coleta oficial,
+após a identificação de que a ausência de vida real no jogador comprometeriam
+a validade das métricas: sem possibilidade de derrota, o campo
+\texttt{player\_damage\_taken} seria artificial e o resultado da sessão
+tenderia invariavelmente a vitória.
+
+\subsection{Boss FSM --- BossFsmController}
+\label{subsec:boss-fsm-impl}
+
+O \texttt{BossFsmController} implementa o chefe \textit{baseline}
+como uma máquina de estados finitos com quatro estados, operando sobre um
+\texttt{Rigidbody2D}. As transições são determinadas exclusivamente pela
+distância horizontal até o jogador e pelo estado interno de
+\textit{cooldown}.
+
+A \autoref{tab:fsm-estados} descreve o comportamento associado a cada estado.
+
+\begin{table}[htb]
+    \centering
+    \caption{Estados e comportamentos do chefe FSM.}
+    \label{tab:fsm-estados}
+    \begin{tabular}{l p{10cm}}
+        \toprule
+        \textbf{Estado}       & \textbf{Comportamento} \\
+        \midrule
+        \textit{Idle}         & O chefe permanece parado. Ocorre tipicamente
+                                quando o jogador está dentro do alcance de
+                                ataque, mas o \textit{cooldown} ainda não
+                                expirou. \\
+        \addlinespace
+        \textit{Chase}        & O chefe move-se horizontalmente em direção ao
+                                jogador com velocidade de perseguição
+                                configurável. \\
+        \addlinespace
+        \textit{Attack}       & O chefe interrompe o movimento, emite o evento
+                                \texttt{OnBossAttackPerformed}, exibe
+                                \textit{feedback} visual e entra em
+                                \textit{cooldown}. \\
+        \addlinespace
+        \textit{Retreat}      & O chefe move-se na direção oposta ao jogador
+                                por um curto período, criando espaçamento
+                                após o ataque. \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+Os parâmetros do FSM foram calibrados para produzir um oponente funcional mas
+previsível, conforme apresentado na \autoref{tab:fsm-params}.
+
+\begin{table}[htb]
+    \centering
+    \caption{Parâmetros do chefe FSM.}
+    \label{tab:fsm-params}
+    \begin{tabular}{l r l}
+        \toprule
+        \textbf{Parâmetro}          & \textbf{Valor} & \textbf{Unidade} \\
+        \midrule
+        \texttt{chaseSpeed}         & 2,0     & unidades/s         \\
+        \texttt{attackRange}        & 1,25    & unidades           \\
+        \texttt{attackDuration}     & 0,2     & segundos           \\
+        \texttt{retreatDuration}    & 0,45    & segundos           \\
+        \texttt{retreatSpeed}       & 1,5     & unidades/s         \\
+        \texttt{attackCooldown}     & 0,8     & segundos           \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+A previsibilidade do FSM é uma propriedade intencional: ela garante que o
+\textit{baseline} forneça um referencial estável e reprodutível para a
+comparação com o agente treinado por PPO \cite{millington2019ai}.
+
+\subsection{Dano do Boss --- BossAttackDamage}
+\label{subsec:boss-attack-damage}
+
+O componente \texttt{BossAttackDamage} é compartilhado pelas duas condições
+experimentais (FSM e PPO) e aplica dano real ao jogador quando um ataque do
+chefe é executado dentro do alcance. A cada evento de ataque, o componente
+verifica a distância até o jogador; se esta for inferior a
+\texttt{attackRange} (1,25 unidades) e o \textit{cooldown} de dano (0,8
+segundos) tiver expirado, 10 pontos de dano são aplicados ao
+\texttt{PlayerHealth}.
+
+O \textit{cooldown} de dano é especialmente relevante na condição PPO: como
+o agente treinado apresenta alta frequência de ações de ataque, a ausência
+de \textit{cooldown} resultaria em dano instantâneo e inviabilizaria a
+avaliação. O valor de 0,8 segundos é idêntico ao \texttt{attackCooldown}
+do FSM, preservando a equivalência de condições.
+
+% -----------------------------------------------------------------------------
+\section{Núcleo de Proveniência}
+\label{sec:nucleo-proveniencia}
+
+O sistema de proveniência é composto por três componentes que, em conjunto,
+registram, armazenam e exportam as cadeias causais de eventos de cada sessão
+de jogo.
+
+\subsection{ProvenanceGraph --- Estrutura em Memória}
+\label{subsec:provenance-graph}
+
+O \texttt{ProvenanceGraph} mantém o grafo de proveniência da sessão corrente
+em memória. Cada nó do grafo é um evento com os seguintes atributos:
+
+\begin{itemize}
+    \item \texttt{eventId}: identificador único do evento;
+    \item \texttt{timestamp}: marcação temporal em segundos desde o início da
+          sessão;
+    \item \texttt{actorId}: identificador do ator que originou o evento
+          (jogador ou chefe);
+    \item \texttt{actionType}: tipo da ação (e.g., \texttt{PlayerAttack},
+          \texttt{BossAttack}, \texttt{BossDamageTaken});
+    \item \texttt{position}: posição 2D do ator no momento do evento;
+    \item \texttt{value}: valor numérico associado (e.g., quantidade de dano);
+    \item \texttt{parentEventId}: referência ao evento causador.
+\end{itemize}
+
+O atributo \texttt{parentEventId} é o elemento que distingue este sistema de
+um log sequencial convencional. Ao apontar para o evento que causou o evento
+corrente, ele estabelece uma relação causal explícita, transformando a
+sequência temporal de eventos em um grafo dirigido acíclico (DAG) com
+semântica de causa e efeito \cite{provenance_base}.
+
+\subsection{ProvenanceLogger --- Captura de Eventos}
+\label{subsec:provenance-logger}
+
+O \texttt{ProvenanceLogger} atua como ponto de integração entre o
+\textit{gameplay} e o sistema de proveniência. Ele inscreve-se nos eventos
+emitidos pelos componentes de jogo e, para cada evento recebido, cria um nó
+correspondente no \texttt{ProvenanceGraph} com o \texttt{parentEventId}
+apontando para o evento mais recente na cadeia.
+
+Os eventos capturados pelo \texttt{ProvenanceLogger} incluem:
+
+\begin{itemize}
+    \item \textbf{Ações do jogador}: \texttt{PlayerJump},
+          \texttt{PlayerAttack}, \texttt{PlayerDash} --- emitidos pelo
+          \texttt{PlayerController};
+    \item \textbf{Dano no jogador}: \texttt{PlayerDamageTaken} --- emitido
+          pelo \texttt{PlayerHealth} ao receber dano;
+    \item \textbf{Ações do chefe}: \texttt{BossAttack} --- emitido pelo
+          \texttt{BossFsmController} (ou equivalente no PPO);
+    \item \textbf{Dano no chefe}: \texttt{BossDamageTaken} --- emitido pelo
+          \texttt{BossHealth};
+    \item \textbf{Morte do chefe}: \texttt{BossDeath} --- emitido pelo
+          \texttt{BossHealth} quando a vida atinge zero;
+    \item \textbf{Controle de sessão}: \texttt{SessionStart} e
+          \texttt{SessionEnd} --- emitidos pelo \texttt{ArenaManager}.
+\end{itemize}
+
+Um aspecto relevante de projeto é que o \texttt{ProvenanceLogger} não modifica
+nem interfere no fluxo de \textit{gameplay}. Ele é um observador puro: escuta
+eventos, registra nós no grafo e não emite ações de volta ao jogo. Essa
+separação garante que a presença ou ausência do sistema de proveniência não
+altere o comportamento da simulação, propriedade essencial para a validade da
+comparação entre as condições FSM e PPO.
+
+A \autoref{fig:cadeia-causal} ilustra um exemplo de cadeia causal típica
+registrada pelo sistema.
+
+ \begin{figure}[htb]
+     \centering
+     \includegraphics[width=0.8\textwidth]{imagens/cadeia-causal}
+     \caption{Exemplo de cadeia causal registrada pelo sistema de
+              proveniência em uma sessão de combate.}
+     \label{fig:cadeia-causal}
+     \fonte{Elaborado pelo autor.}
+ \end{figure}
+
+A cadeia causal típica de uma sessão vitoriosa segue o encadeamento:
+
+\begin{quote}
+    \texttt{SessionStart} $\rightarrow$ \texttt{BossAttack} $\rightarrow$
+    \texttt{PlayerDamageTaken} $\rightarrow$ \texttt{PlayerAttack}
+    $\rightarrow$ \texttt{PlayerDamageDealt} $\rightarrow$
+    \texttt{BossDamageTaken} $\rightarrow$ \texttt{BossDeath} $\rightarrow$
+    \texttt{SessionEnd}
+\end{quote}
+
+Nessa cadeia, a relação entre \texttt{PlayerAttack} e
+\texttt{BossDamageTaken} não é meramente temporal: o atributo
+\texttt{parentEventId} do nó \texttt{BossDamageTaken} aponta explicitamente
+para o nó \texttt{PlayerAttack}, indicando causalidade direta.
+
+\subsection{ProvenanceExporter --- Serialização em JSON}
+\label{subsec:provenance-exporter}
+
+O \texttt{ProvenanceExporter} é responsável por serializar o grafo de
+proveniência em formato JSON ao término de cada sessão. A exportação é
+disparada pelo evento \texttt{SessionEnd} emitido pelo
+\texttt{ArenaManager}, e o arquivo resultante é gravado no diretório
+\texttt{TreinamentoML/provenance\_data/} com nome baseado no identificador
+da sessão.
+
+Cada arquivo JSON contém a lista completa de nós do grafo, incluindo todos os
+atributos descritos na \autoref{subsec:provenance-graph}, além de metadados da
+sessão como resultado (\texttt{victory} ou \texttt{defeat}), duração e tipo
+de chefe. Esse formato permite que o script Python de extração de sequências
+opere diretamente sobre os arquivos exportados, sem necessidade de
+transformações intermediárias.
+
+% -----------------------------------------------------------------------------
+\section{Integração com Aprendizado por Reforço}
+\label{sec:integracao-rl}
+
+A integração entre o sistema de proveniência e o aprendizado por reforço é
+realizada por dois componentes complementares: o
+\texttt{ProvenanceRewardShaper}, que converte as sequências vitoriosas em
+sinais de recompensa, e o \texttt{BossAgent}, que implementa o agente PPO
+com observações vetoriais e ações discretas.
+
+\subsection{ProvenanceRewardShaper --- Recompensa por Proveniência}
+\label{subsec:reward-shaper-impl}
+
+O \texttt{ProvenanceRewardShaper} é o componente que materializa a conexão
+entre proveniência e aprendizado por reforço. Seu funcionamento segue três
+etapas:
+
+\begin{enumerate}
+    \item \textbf{Carregamento}: na inicialização, o componente lê o arquivo
+          \texttt{winning\_sequences.json} --- gerado pelo script Python de
+          extração --- e armazena as sequências vitoriosas em memória como
+          listas de \textit{strings};
+    \item \textbf{Registro}: a cada ação executada pelo agente, a
+          \textit{string} correspondente à ação (e.g.,
+          \texttt{"PlayerAttack"}) é inserida em um \textit{buffer} circular
+          de tamanho fixo (igual ao tamanho das sequências, i.e., 3);
+    \item \textbf{Comparação}: após cada inserção, o conteúdo do
+          \textit{buffer} é comparado com todas as sequências vitoriosas
+          carregadas. Quando há correspondência exata, o componente retorna
+          uma recompensa configurável com valor padrão de $+2{,}0$.
+\end{enumerate}
+
+O \texttt{BossAgent} consulta o \texttt{ProvenanceRewardShaper} a cada passo
+de decisão e, caso haja recompensa disponível, a adiciona ao sinal de
+recompensa do episódio via \texttt{AddReward}. Essa recompensa auxiliar atua
+em conjunto com a recompensa extrínseca do ambiente, sem substituí-la.
+
+A decisão de isolar a lógica de \textit{Reward Shaping} em um componente
+separado foi motivada por quatro razões:
+
+\begin{enumerate}
+    \item Permite testar o mecanismo de correspondência de sequências
+          isoladamente, sem depender do ciclo de treinamento do ML-Agents;
+    \item Mantém o código do \texttt{BossAgent} focado em observações e
+          ações, sem misturar lógica de proveniência;
+    \item Facilita a substituição ou extensão do esquema de \textit{Reward
+          Shaping} em trabalhos futuros;
+    \item Preserva a rastreabilidade da contribuição acadêmica: toda a lógica
+          que conecta proveniência e RL está localizada em um único componente
+          auditável.
+\end{enumerate}
+
+\subsection{Vocabulário Compartilhado de Ações}
+\label{subsec:vocabulario-acoes}
+
+Um aspecto de implementação que merece destaque é a correspondência de
+vocabulário entre as ações do agente PPO e as ações humanas registradas pela
+proveniência. Quando o \texttt{BossAgent} executa uma ação de pulo, ataque ou
+\textit{dash}, ele registra no \texttt{ProvenanceRewardShaper} a mesma
+\textit{string} utilizada pelo \texttt{ProvenanceLogger} para a ação
+equivalente do jogador humano:
+
+\begin{itemize}
+    \item Ação de pulo do agente $\rightarrow$ \texttt{"PlayerJump"}
+    \item Ação de ataque do agente $\rightarrow$ \texttt{"PlayerAttack"}
+    \item Ação de \textit{dash} do agente $\rightarrow$ \texttt{"PlayerDash"}
+\end{itemize}
+
+Essa correspondência garante que a comparação entre o \textit{buffer} do
+agente e as sequências vitoriosas extraídas dos grafos de proveniência seja
+direta, sem necessidade de mapeamentos intermediários. O agente PPO, ao
+executar a mesma combinação de ações que um jogador humano utilizou para
+causar dano no chefe em uma sessão vitoriosa, recebe a recompensa auxiliar.
+
+\subsection{BossAgent --- Agente PPO}
+\label{subsec:boss-agent-impl}
+
+O \texttt{BossAgent} herda da classe \texttt{Agent} do Unity ML-Agents
+\cite{juliani2020unity} e implementa os três métodos fundamentais do ciclo de
+treinamento: \texttt{CollectObservations}, \texttt{OnActionReceived} e
+\texttt{OnEpisodeBegin}.
+
+\subsubsection{Espaço de Observação}
+
+O agente coleta 10 observações vetoriais a cada passo de decisão, conforme
+detalhado na \autoref{tab:observacoes}.
+
+\begin{table}[htb]
+    \centering
+    \caption{Observações vetoriais do \texttt{BossAgent}.}
+    \label{tab:observacoes}
+    \begin{tabular}{r l p{6.5cm}}
+        \toprule
+        \textbf{\#} & \textbf{Observação}     & \textbf{Descrição} \\
+        \midrule
+        1  & \texttt{bossPosition.x}           & Posição horizontal do chefe. \\
+        2  & \texttt{bossPosition.y}           & Posição vertical do chefe. \\
+        3  & \texttt{bossVelocity.x}           & Velocidade horizontal do chefe. \\
+        4  & \texttt{bossVelocity.y}           & Velocidade vertical do chefe. \\
+        5  & \texttt{relativePlayerPos.x}      & Distância relativa horizontal
+                                                 até o jogador. \\
+        6  & \texttt{relativePlayerPos.y}      & Distância relativa vertical
+                                                 até o jogador. \\
+        7  & \texttt{normalizedBossHealth}      & Vida normalizada do chefe
+                                                 (intervalo $[0, 1]$). \\
+        8  & \texttt{1.0} (\textit{placeholder}) & Vida do jogador.
+                                                 \textit{Placeholder} fixo
+                                                 utilizado durante o treino. \\
+        9  & \texttt{IsGrounded()}              & Indicador binário: 1 se o
+                                                 chefe está no chão, 0 caso
+                                                 contrário. \\
+        10 & \texttt{0.0} (\textit{placeholder}) & \textit{Cooldown} de
+                                                 \textit{dash}.
+                                                 \textit{Placeholder} fixo. \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+As observações 8 e 10 são \textit{placeholders} fixos que foram preservados
+na arquitetura final do modelo. Embora não forneçam informação variável ao
+agente, sua presença no vetor de observação era necessária para manter a
+compatibilidade dimensional com o modelo ONNX exportado. Essa decisão é uma
+consequência direta do congelamento do modelo antes da adição do
+\texttt{PlayerHealth} real, conforme documentado nas decisões de escopo
+(\autoref{sec:decisoes-escopo}).
+
+\subsubsection{Espaço de Ação}
+
+O agente opera com um espaço de ação discreto contendo seis ações mutuamente
+exclusivas, apresentadas na \autoref{tab:acoes-ppo}.
+
+\begin{table}[htb]
+    \centering
+    \caption{Ações discretas do \texttt{BossAgent}.}
+    \label{tab:acoes-ppo}
+    \begin{tabular}{r l p{7cm}}
+        \toprule
+        \textbf{Índice} & \textbf{Ação}          & \textbf{Efeito} \\
+        \midrule
+        0 & \textit{Idle}          & Nenhuma ação. O chefe permanece parado. \\
+        1 & \textit{Move Left}     & Desloca o chefe para a esquerda. \\
+        2 & \textit{Move Right}    & Desloca o chefe para a direita. \\
+        3 & \textit{Jump}          & Aplica impulso vertical ao chefe. Registra
+                                     \texttt{"PlayerJump"} no \textit{Reward
+                                     Shaper}. \\
+        4 & \textit{Attack Melee}  & Executa ataque corpo a corpo. Registra
+                                     \texttt{"PlayerAttack"} no \textit{Reward
+                                     Shaper}. \\
+        5 & \textit{Dash}          & Executa \textit{dash} horizontal. Registra
+                                     \texttt{"PlayerDash"} no \textit{Reward
+                                     Shaper}. \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+As ações 3, 4 e 5 correspondem ao vocabulário de ações que o
+\texttt{ProvenanceRewardShaper} monitora. As ações 0, 1 e 2 não participam
+do mecanismo de \textit{Reward Shaping}, pois não fazem parte do vocabulário
+de ações registrado nos grafos de proveniência.
+
+\subsubsection{Integração do Modelo ONNX}
+
+O \textit{run} final de treinamento (\texttt{boss\_v1\_500k}) produziu o
+modelo \texttt{BossAgent.onnx} após 500.000 passos de treinamento. As
+métricas finais registradas pelo TensorBoard foram: recompensa média
+acumulada de $1766{,}4$ com desvio-padrão de $12{,}8$, obtidas em
+aproximadamente 2.008 segundos de treinamento.
+
+O modelo foi integrado ao projeto Unity no diretório
+\texttt{Assets/Models/BossAgent.onnx} e associado ao componente
+\texttt{BossAgent} no \textit{prefab} \texttt{Boss\_PPO} em modo
+\texttt{InferenceOnly}. Nesse modo, o agente utiliza o modelo ONNX para
+tomar decisões a cada passo, sem conexão com o treinador Python. Essa
+configuração garante que o comportamento observado durante a avaliação reflita
+exclusivamente a política aprendida durante o treinamento, sem qualquer ajuste
+\textit{online} \cite{onnx2019}.
+
+% -----------------------------------------------------------------------------
+\section{Sistema de Métricas e Gerenciamento de Sessão}
+\label{sec:sistema-metricas}
+
+O sistema de coleta de métricas opera como uma camada de instrumentação
+acoplada aos eventos já existentes no \textit{gameplay}, sem interferir na
+simulação.
+
+\subsection{ArenaManager --- Ciclo de Vida da Sessão}
+\label{subsec:arena-manager}
+
+O \texttt{ArenaManager} coordena o ciclo de vida de cada sessão de combate.
+Suas responsabilidades incluem:
+
+\begin{itemize}
+    \item Emitir o evento \texttt{SessionStart} ao iniciar a cena;
+    \item Detectar vitória (morte do chefe via evento do \texttt{BossHealth})
+          ou derrota (morte do jogador via evento do \texttt{PlayerHealth});
+    \item Emitir o evento \texttt{SessionEnd} com o resultado
+          (\texttt{victory} ou \texttt{defeat});
+    \item Acionar a exportação de métricas CSV e, quando habilitada, a
+          exportação do grafo de proveniência em JSON.
+\end{itemize}
+
+\subsection{GameMetrics e GameMetricsExporter --- Coleta e Exportação CSV}
+\label{subsec:game-metrics}
+
+O \texttt{GameMetrics} inscreve-se nos eventos de \textit{gameplay} e
+acumula contadores e métricas ao longo da sessão: duração, dano recebido pelo
+chefe, dano recebido pelo jogador, contagem de ações do jogador (pulos,
+ataques, \textit{dashes}) e contagem de ações do chefe. Para sessões contra o
+chefe PPO, são registradas também as contagens individuais de cada uma das
+seis ações discretas do \texttt{BossAgent}.
+
+Ao término da sessão, o \texttt{GameMetricsExporter} serializa todas as
+métricas em uma linha CSV e a anexa ao arquivo
+\texttt{boss\_evaluation\_metrics.csv}. O exportador implementa três
+cuidados de engenharia:
+
+\begin{enumerate}
+    \item \textbf{Cabeçalho estável}: o cabeçalho é escrito uma única vez, na
+          criação do arquivo, garantindo que todas as linhas compartilhem a
+          mesma estrutura de colunas;
+    \item \textbf{Formato invariante}: valores numéricos são formatados com
+          \texttt{CultureInfo.InvariantCulture}, assegurando que o separador
+          decimal seja sempre o ponto, independentemente da configuração
+          regional do sistema operacional;
+    \item \textbf{Resolução de caminho}: o caminho do arquivo é resolvido
+          relativamente à raiz do repositório, e o diretório de destino é
+          criado automaticamente caso não exista.
+\end{enumerate}
+
+Essas precauções garantem que o CSV gerado seja diretamente consumível por
+ferramentas de análise sem necessidade de pré-processamento.

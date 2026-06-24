@@ -1,0 +1,69 @@
+% =============================================================================
+% Capítulo 8 — Conclusão
+% =============================================================================
+\chapter{Conclusão}
+\label{cap:conclusao}
+
+A criação de comportamentos de NPCs em jogos digitais enfrenta uma tensão
+recorrente entre previsibilidade e adaptabilidade. Máquinas de Estados Finitos
+oferecem controle total e facilidade de depuração, mas produzem oponentes cujos
+padrões se tornam evidentes após poucas interações. O Aprendizado por Reforço
+permite a emergência de comportamentos adaptativos, mas impõe o desafio de
+definir funções de recompensa que orientem o agente sem recorrer a modelagem
+manual exaustiva ou à imitação direta de demonstrações humanas, que vincula o
+agente ao comportamento observado sem preservar a rastreabilidade causal das
+decisões de \textit{design}.
+
+O presente trabalho endereçou essa tensão por meio de uma abordagem que
+integra Proveniência de Dados e Aprendizado por Reforço. Foi desenvolvido o
+\textit{vertical slice} do jogo \textit{Chronicles Of The Lost Word}, um
+protótipo 2D em Unity centrado em uma arena de combate contra um chefe. O
+pipeline implementado percorreu todas as etapas propostas: sessões jogadas
+contra o chefe FSM geraram grafos de proveniência com cadeias causais de
+eventos; um processo automatizado extraiu sequências de ações associadas a
+desfechos vitoriosos; essas sequências foram carregadas por um módulo de
+\textit{Reward Shaping} que concedeu recompensa adicional ao agente PPO
+durante o treinamento via Unity ML-Agents; e o modelo resultante foi exportado
+em formato ONNX e integrado ao jogo em modo de inferência para avaliação
+quantitativa.
+
+Os resultados da avaliação --- 10 sessões contra o chefe FSM e 10 contra o
+chefe PPO, com métricas coletadas automaticamente --- confirmaram que a
+metodologia produziu um agente com comportamento mensuravelmente distinto do
+\textit{baseline}. O chefe PPO gerou sessões de combate 2,5 vezes mais longas,
+executou 53 vezes mais ações de ataque por sessão e foi a única condição
+experimental a produzir uma derrota do jogador na amostra. As ações
+participantes do mecanismo de \textit{Reward Shaping} --- ataque, pulo e
+\textit{dash} --- corresponderam a 77,48\% das decisões do agente, indicando
+que o sinal auxiliar derivado da proveniência exerceu influência direta sobre
+a política aprendida.
+
+Esses resultados validam a tese central do trabalho: sequências extraídas de
+grafos de proveniência podem ser utilizadas como sinal auxiliar de recompensa
+em um agente PPO, orientando o aprendizado sem imitação direta e produzindo
+um comportamento que, embora distinto do humano, é rastreável às decisões
+causais que o originaram. O agente não reproduziu trajetórias gravadas nem
+utilizou discriminadores adversários; ele explorou o ambiente livremente e
+convergiu para uma política influenciada por padrões causais vitoriosos ---
+uma via alternativa ao GAIL \cite{ho2016gail} que preserva a interpretabilidade
+do processo de treinamento.
+
+As limitações observadas --- em particular, a repetição mecânica de ações
+decorrente da ausência de \textit{cooldowns} no espaço de ações do agente e
+do modelo congelado sem retreino após ajustes na avaliação --- não invalidam
+a contribuição; elas a contextualizam. O comportamento repetitivo é uma
+consequência documentada e explicável de escolhas de projeto específicas, e
+sua correção constitui um passo natural de refinamento, não uma refutação da
+abordagem. A amostra reduzida e a avaliação conduzida pelo próprio
+desenvolvedor delimitam o alcance das conclusões à demonstração de viabilidade,
+sem pretensão de generalização estatística.
+
+Em última análise, o trabalho demonstrou que a proveniência de dados ---
+originalmente concebida para rastreamento de linhagem e análise
+\textit{post-mortem} de sessões --- pode ser reaproveitada como ponte entre
+o \textit{gameplay} humano e o treinamento de agentes inteligentes em jogos.
+Essa integração abre um espaço de investigação no qual grafos causais de
+sessões de jogo deixam de ser apenas ferramentas de análise e passam a atuar
+como fontes ativas de orientação para o aprendizado, combinando a
+rastreabilidade da proveniência com a capacidade adaptativa do aprendizado
+por reforço.

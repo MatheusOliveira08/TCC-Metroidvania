@@ -1,0 +1,305 @@
+% =============================================================================
+% Capítulo 5 — Avaliação Quantitativa
+% =============================================================================
+\chapter{Avaliação Quantitativa}
+\label{cap:avaliacao}
+
+Este capítulo descreve o cenário, as condições e o protocolo adotados para a
+avaliação quantitativa comparativa entre o chefe controlado por FSM e o chefe
+controlado pelo modelo PPO treinado. O objetivo da avaliação é verificar se o
+pipeline de \textit{Reward Shaping} por proveniência produziu um agente com
+comportamento mensuravelmente distinto do \textit{baseline} determinístico,
+utilizando métricas objetivas coletadas em sessões controladas. Os resultados
+numéricos da avaliação são apresentados no \autoref{cap:resultados}.
+
+% -----------------------------------------------------------------------------
+\section{Ambiente de Avaliação}
+\label{sec:ambiente-avaliacao}
+
+A avaliação foi conduzida em duas cenas do Unity, cada uma configurada para
+uma das condições experimentais. Ambas as cenas compartilham a mesma arena de
+combate, os mesmos parâmetros de dano e vida, e o mesmo personagem jogável
+(Elian), diferindo exclusivamente no componente que controla o chefe.
+
+A \autoref{tab:cenas-oficiais} apresenta as cenas oficiais utilizadas.
+
+\begin{table}[htb]
+    \centering
+    \caption{Cenas oficiais de avaliação e suas configurações.}
+    \label{tab:cenas-oficiais}
+    \begin{tabular}{l p{5cm} p{5.5cm}}
+        \toprule
+        \textbf{Condição} & \textbf{Cena Unity}
+                          & \textbf{Configuração} \\
+        \midrule
+        FSM & \texttt{ArenaChefe.unity}
+            & Chefe controlado por \texttt{BossFsmController}. Exporta CSV
+              de métricas e JSON de proveniência. \\
+        \addlinespace
+        PPO & \texttt{BossArena\_PPO.unity}
+            & Chefe controlado por \texttt{BossAgent} em modo
+              \texttt{InferenceOnly}. Exporta CSV de métricas. \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+\subsection{Preparação das Cenas}
+\label{subsec:preparacao-cenas}
+
+Ambas as cenas foram preparadas para serem jogáveis pelo desenvolvedor em
+condições idênticas. Essa preparação envolveu ajustes específicos para
+garantir a equivalência entre as condições experimentais:
+
+\begin{itemize}
+    \item \textbf{Personagem controlável}: nas duas cenas, Elian é controlado
+          pelo desenvolvedor via \textit{Input System}, com as mesmas
+          mecânicas de movimento, pulo, ataque e \textit{dash};
+    \item \textbf{Câmera}: o componente \texttt{HorizontalCameraFollow} foi
+          adicionado para que a câmera acompanhe o personagem apenas no eixo
+          horizontal, melhorando a jogabilidade sem alterar nenhum aspecto da
+          IA, do sistema de recompensa, do modelo, das \textit{hitboxes} ou
+          das métricas;
+    \item \textbf{Parâmetros equalizados}: os valores de vida do jogador, dano
+          do chefe, alcance de ataque e \textit{cooldown} de dano são
+          idênticos nas duas cenas, eliminando vieses de configuração.
+\end{itemize}
+
+A cena PPO passou por uma adaptação adicional: durante o desenvolvimento, ela
+era orientada ao treinamento e utilizava um \texttt{PlayerDummyAI} como
+oponente simulado. Para a fase de avaliação, a dependência do
+\texttt{PlayerDummyAI} foi removida e a cena foi reconfigurada para receber
+entrada humana, garantindo que as sessões contra o chefe PPO seguissem o mesmo
+fluxo operacional das sessões contra o chefe FSM.
+
+\subsection{Exportação de Proveniência na Avaliação}
+\label{subsec:proveniencia-avaliacao}
+
+Uma distinção operacional entre as duas cenas é a exportação de grafos de
+proveniência em JSON. Na cena FSM, a exportação ao término da sessão
+(\texttt{exportOnSessionEnd}) permaneceu habilitada, gerando um arquivo JSON
+por sessão. Na cena PPO, essa exportação foi desabilitada por decisão de
+escopo: a métrica principal da avaliação comparativa é o CSV quantitativo, e
+os JSONs da cena FSM já constituem evidência suficiente do funcionamento do
+mecanismo de proveniência.
+
+Essa decisão não afeta a validade da comparação quantitativa, pois ambas as
+cenas exportam o mesmo CSV de métricas com estrutura de colunas idêntica.
+
+% -----------------------------------------------------------------------------
+\section{Condições de Vitória e Derrota}
+\label{sec:condicoes-vitoria-derrota}
+
+A definição de condições reais de vitória e derrota é um requisito
+metodológico fundamental para a validade da avaliação. Uma comparação entre
+chefes FSM e PPO na qual o jogador não pudesse ser derrotado produziria dados
+enviesados: o campo \texttt{player\_damage\_taken} seria artificial, o
+resultado de todas as sessões tenderia invariavelmente a vitória, e a
+capacidade ofensiva do chefe --- que é precisamente a variável de interesse
+--- não seria adequadamente capturada pelas métricas.
+
+\subsection{Adição do Sistema de Vida Real}
+\label{subsec:adicao-vida-real}
+
+Para resolver essa limitação, o componente \texttt{PlayerHealth} foi integrado
+ao personagem Elian antes do início da coleta oficial. Esse componente
+implementa um sistema de pontos de vida com valor máximo de 100, dano
+recebido cumulativo e emissão de evento de morte quando os pontos de vida
+atingem zero. A morte do jogador é detectada pelo \texttt{ArenaManager}, que
+encerra a sessão com resultado \texttt{defeat}.
+
+Complementarmente, o componente \texttt{BossAttackDamage} foi implementado
+para aplicar dano real ao jogador quando o chefe executa um ataque dentro do
+alcance. Esse componente é compartilhado pelas duas condições experimentais
+(FSM e PPO), garantindo que o sistema de dano opere de forma idêntica
+independentemente do controlador do chefe.
+
+\subsection{Parâmetros de Dano}
+\label{subsec:parametros-dano}
+
+A \autoref{tab:parametros-dano} apresenta os parâmetros de dano utilizados na
+avaliação.
+
+\begin{table}[htb]
+    \centering
+    \caption{Parâmetros de dano do chefe utilizados na avaliação.}
+    \label{tab:parametros-dano}
+    \begin{tabular}{l r l}
+        \toprule
+        \textbf{Parâmetro}                 & \textbf{Valor} & \textbf{Unidade} \\
+        \midrule
+        \texttt{PlayerHealth.maxHealth}    & 100   & pontos de vida \\
+        \texttt{damageAmount}              & 10    & pontos por ataque \\
+        \texttt{attackRange}               & 1,25  & unidades \\
+        \texttt{damageCooldown}            & 0,8   & segundos \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+Todos os parâmetros foram mantidos idênticos nas duas condições para
+eliminar vieses de configuração. A igualdade do \texttt{damageAmount} e do
+\texttt{attackRange} garante que cada ataque do chefe, seja FSM ou PPO,
+produza exatamente o mesmo efeito quando conectado.
+
+\subsection{O Papel do Cooldown de Dano}
+\label{subsec:cooldown-dano}
+
+O parâmetro \texttt{damageCooldown} merece atenção especial. Esse
+\textit{cooldown} define o intervalo mínimo entre duas aplicações consecutivas
+de dano pelo chefe, independentemente da frequência com que o chefe executa
+ações de ataque.
+
+No contexto da condição FSM, o \textit{cooldown} de dano é pouco perceptível,
+pois o \texttt{attackCooldown} interno do FSM (também de 0,8 segundos) já
+limita naturalmente a frequência de ataques. Na condição PPO, contudo, o
+\textit{cooldown} de dano é crucial: o agente treinado apresenta alta
+frequência de ações de ataque, executando a ação \textit{Attack Melee} em
+uma fração significativa dos passos de decisão. Sem o \textit{cooldown} de
+dano, essa frequência elevada resultaria em múltiplas aplicações de dano
+por segundo, eliminando o jogador quase instantaneamente e inviabilizando
+sessões jogáveis.
+
+O valor de 0,8 segundos foi escolhido para alinhar-se ao \textit{cooldown}
+natural do FSM, garantindo que a taxa máxima de dano efetivo seja a mesma nas
+duas condições. Dessa forma, a diferença na frequência de ações de ataque
+entre FSM e PPO manifesta-se na contagem de ações registrada (\texttt{boss\_attack\_count}),
+mas não na taxa de dano efetivo aplicado ao jogador.
+
+\subsection{Integração com os Sistemas Existentes}
+\label{subsec:integracao-sistemas}
+
+A adição do sistema de vida real exigiu integração com três sistemas
+existentes:
+
+\begin{enumerate}
+    \item \textbf{ArenaManager}: a morte do jogador (evento emitido pelo
+          \texttt{PlayerHealth}) passou a ser detectada como condição de
+          encerramento da sessão, com resultado \texttt{defeat};
+    \item \textbf{GameMetrics}: o campo \texttt{player\_damage\_taken} passou
+          a ser alimentado pelo dano real aplicado pelo
+          \texttt{BossAttackDamage}, em vez de valores artificiais;
+    \item \textbf{ProvenanceLogger}: o evento \texttt{PlayerDamageTaken} foi
+          adicionado ao conjunto de eventos capturados, registrando cada
+          instância de dano real no grafo de proveniência da sessão.
+\end{enumerate}
+
+Essas integrações seguem o mesmo padrão de comunicação por eventos descrito
+no \autoref{cap:implementacao}: cada sistema inscreve-se nos eventos emitidos
+pelo \texttt{PlayerHealth} sem modificar o componente emissor, preservando o
+baixo acoplamento da arquitetura.
+
+% -----------------------------------------------------------------------------
+\section{Protocolo de Coleta}
+\label{sec:protocolo-coleta}
+
+O protocolo de coleta foi projetado para maximizar a comparabilidade entre as
+condições experimentais dentro das restrições de escopo do trabalho.
+
+\subsection{Procedimento}
+\label{subsec:procedimento}
+
+A coleta oficial consistiu em 20 sessões jogadas manualmente pelo
+desenvolvedor, divididas em dois blocos sequenciais:
+
+\begin{enumerate}
+    \item \textbf{Bloco FSM}: 10 sessões consecutivas na cena
+          \texttt{ArenaChefe.unity}, contra o chefe controlado por FSM;
+    \item \textbf{Bloco PPO}: 10 sessões consecutivas na cena
+          \texttt{BossArena\_PPO.unity}, contra o chefe controlado pelo
+          modelo PPO em modo \texttt{InferenceOnly}.
+\end{enumerate}
+
+Em ambos os blocos, o desenvolvedor jogou normalmente como Elian, utilizando
+as mecânicas disponíveis (movimento, pulo, ataque e \textit{dash}) sem
+restrições ou instruções comportamentais específicas. Cada sessão encerrou-se
+naturalmente por vitória (morte do chefe) ou derrota (morte do jogador), e
+as métricas foram exportadas automaticamente ao término da sessão.
+
+A \autoref{tab:amostra} sintetiza a composição da amostra oficial.
+
+\begin{table}[htb]
+    \centering
+    \caption{Composição da amostra oficial da avaliação.}
+    \label{tab:amostra}
+    \begin{tabular}{l r}
+        \toprule
+        \textbf{Condição} & \textbf{Sessões} \\
+        \midrule
+        FSM                & 10 \\
+        PPO                & 10 \\
+        \midrule
+        \textbf{Total}     & \textbf{20} \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+\subsection{Coleta Automatizada de Métricas}
+\label{subsec:coleta-automatizada}
+
+As métricas de cada sessão foram registradas automaticamente pelo sistema
+\texttt{GameMetrics} e exportadas pelo \texttt{GameMetricsExporter} para o
+arquivo CSV \texttt{boss\_evaluation\_metrics.csv}. Esse processo não requer
+intervenção manual do jogador: os contadores são inicializados
+automaticamente ao início da sessão e a linha CSV é gravada ao término,
+garantindo a lisura dos dados coletados.
+
+O cabeçalho do CSV contém 18 campos, abrangendo identificação da sessão
+(\texttt{session\_id}, \texttt{boss\_type}), resultado
+(\texttt{result}), temporização (\texttt{start\_time\_seconds},
+\texttt{end\_time\_seconds}, \texttt{duration\_seconds}), métricas de
+combate (\texttt{boss\_damage\_taken}, \texttt{player\_damage\_taken}) e
+contagens detalhadas de ações do jogador e do chefe. Para sessões contra o
+chefe PPO, seis campos adicionais registram a distribuição das ações
+discretas do agente (\texttt{ppo\_idle\_count} a \texttt{ppo\_dash\_count}).
+
+Três cuidados de engenharia garantem a confiabilidade do CSV exportado:
+
+\begin{enumerate}
+    \item O cabeçalho é escrito uma única vez, na criação do arquivo,
+          assegurando estrutura de colunas consistente;
+    \item Valores numéricos são formatados com
+          \texttt{CultureInfo.InvariantCulture}, de modo que o separador
+          decimal seja sempre o ponto, independentemente da configuração
+          regional do sistema;
+    \item O caminho do arquivo é resolvido relativamente à raiz do
+          repositório, e o diretório de destino é criado automaticamente
+          caso não exista.
+\end{enumerate}
+
+\subsection{Controle de Linhas Extras}
+\label{subsec:controle-linhas}
+
+Após a coleta oficial das 20 sessões, sessões adicionais foram realizadas
+para fins de gravação de evidências visuais (vídeos demonstrativos do
+comportamento dos chefes FSM e PPO). Essas sessões adicionais geraram linhas
+extras no CSV, que não fazem parte da amostra oficial.
+
+Para evitar contaminação dos dados, a análise apresentada no
+\autoref{cap:resultados} considera exclusivamente as primeiras 20 linhas do
+CSV, correspondentes às 10 sessões FSM e 10 sessões PPO da coleta oficial.
+Qualquer linha posterior é descartada da análise.
+
+\subsection{Considerações sobre Validade}
+\label{subsec:validade}
+
+O protocolo adotado apresenta características que favorecem a validade interna
+da comparação:
+
+\begin{itemize}
+    \item \textbf{Condições equalizadas}: parâmetros de dano, vida e alcance
+          são idênticos nas duas cenas, garantindo que diferenças nas
+          métricas reflitam exclusivamente o comportamento do chefe;
+    \item \textbf{Coleta automatizada}: a exportação de métricas não depende
+          de registro manual, eliminando erros de transcrição;
+    \item \textbf{Modelo congelado}: o chefe PPO opera em inferência pura, sem
+          ajustes \textit{online}, garantindo reprodutibilidade do
+          comportamento;
+    \item \textbf{Mesmo jogador}: todas as sessões foram conduzidas pelo
+          mesmo operador, eliminando variância interpessoal.
+\end{itemize}
+
+As limitações do protocolo --- em particular, a amostra reduzida, a avaliação
+conduzida pelo próprio desenvolvedor e a ausência de significância estatística
+formal --- são reconhecidas e discutidas no \autoref{cap:discussao}.

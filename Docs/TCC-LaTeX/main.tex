@@ -1,0 +1,275 @@
+% =============================================================================
+% main.tex — Esqueleto da Monografia (abntex2)
+% Chronicles Of The Lost Word: Integração entre Proveniência e
+% Aprendizado por Reforço para Comportamento de Chefe em Jogo 2D
+% =============================================================================
+\documentclass[
+    12pt,                % Tamanho de fonte
+    openright,           % Capítulos começam em página ímpar
+    oneside,             % Para impressão em um lado só (twoside para frente e verso)
+    a4paper,             % Tamanho do papel
+    chapter=TITLE,       % Títulos de capítulo em maiúsculas
+    section=TITLE,       % Títulos de seção em maiúsculas
+    english,             % Idioma secundário (para abstract em inglês)
+    brazil               % Idioma principal
+]{abntex2}
+
+% ---------------------------------------------------------------------------
+% PACOTES ESSENCIAIS
+% ---------------------------------------------------------------------------
+
+% --- Codificação e fontes ---
+\usepackage[T1]{fontenc}        % Codificação de saída
+\usepackage[utf8]{inputenc}     % Codificação de entrada (UTF-8)
+\usepackage{lmodern}            % Fonte Latin Modern (boa para PDF)
+
+% --- Português / Babel ---
+\usepackage[brazil]{babel}      % Hifenização e strings em português
+
+% --- Formatação ABNT ---
+\usepackage{indentfirst}        % Indenta o primeiro parágrafo de cada seção
+\usepackage{microtype}          % Melhora a tipografia geral
+
+% --- Matemática ---
+\usepackage{amsmath}            % Ambientes matemáticos
+\usepackage{amssymb}            % Símbolos matemáticos
+\usepackage{amsfonts}           % Fontes matemáticas
+
+% --- Figuras e gráficos ---
+\usepackage{graphicx}           % Inclusão de imagens
+\usepackage{float}              % Posicionamento forçado de floats [H]
+\usepackage{subcaption}         % Sub-figuras (a), (b)...
+\graphicspath{{figuras/}}       % Pasta padrão de figuras
+
+% --- Tabelas ---
+\usepackage{booktabs}           % Linhas horizontais elegantes
+\usepackage{multirow}           % Células multi-linha
+\usepackage{array}              % Melhorias em colunas de tabela
+\usepackage{longtable}          % Tabelas que quebram página
+
+% --- Algoritmos e pseudocódigo ---
+\usepackage{algorithm}                  % Ambiente flutuante para algoritmos
+\usepackage[noend]{algpseudocode}       % Pseudocódigo sem "end"
+\floatname{algorithm}{Algoritmo}        % Renomeia "Algorithm" para "Algoritmo"
+\renewcommand{\algorithmicrequire}{\textbf{Entrada:}}
+\renewcommand{\algorithmicensure}{\textbf{Saída:}}
+
+% --- Código-fonte ---
+\usepackage{listings}           % Listagens de código
+\usepackage{xcolor}             % Cores personalizadas
+
+% Configuração padrão de listings
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red!70!black},
+    tabsize=4,
+    showstringspaces=false,
+    captionpos=b
+}
+
+% --- Citações e referências ---
+\usepackage[brazilian,hyperpageref]{backref}
+\usepackage[alf]{abntex2cite}   % Citação no padrão ABNT (autor-data)
+
+% --- Hiperlinks ---
+\usepackage{hyperref}
+\hypersetup{
+    pdftitle={Chronicles Of The Lost Word: Integração entre Proveniência e Aprendizado por Reforço para Comportamento de Chefe em Jogo 2D},
+    pdfauthor={Matheus Oliveira},
+    pdfsubject={Trabalho de Conclusão de Curso em Ciência da Computação},
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    filecolor=magenta,
+    urlcolor=blue,
+    bookmarksdepth=4
+}
+
+% --- Backref em português ---
+\renewcommand{\backrefpagesname}{Citado na(s) página(s):~}
+\renewcommand{\backref}{}
+\renewcommand*{\backrefalt}[4]{
+    \ifcase #1
+        Nenhuma citação no texto.
+    \or
+        Citado na página #2.
+    \else
+        Citado #1 vezes nas páginas #2.
+    \fi
+}
+
+% ---------------------------------------------------------------------------
+% DADOS DO TRABALHO (CAPA E FOLHA DE ROSTO)
+% ---------------------------------------------------------------------------
+
+\titulo{Chronicles Of The Lost Word: Integração entre Proveniência e Aprendizado por Reforço para Comportamento de Chefe em Jogo 2D}
+
+\autor{Matheus Oliveira de Lima}
+
+\local{Nova Iguaçu -- Rio de Janeiro}
+
+\data{2026}
+
+\orientador{Bruno Jose Dembogurski }
+
+% \coorientador{Prof. Dr. Nome do Coorientador}
+
+\instituicao{%
+    Universidade Federal Rural do Rio de Janeiro (UFRRJ)
+    \par
+    Campus Nova Iguaçu
+    \par
+    Curso de Ciência da Computação
+}
+
+\tipotrabalho{Trabalho de Conclusão de Curso}
+
+\preambulo{%
+    Monografia apresentada ao Curso de Ciência da Computação
+    da Universidade Federal Rural do Rio de Janeiro como requisito parcial para a obtenção
+    do grau de Bacharel em Ciência da Computação.
+}
+
+% ---------------------------------------------------------------------------
+% INÍCIO DO DOCUMENTO
+% ---------------------------------------------------------------------------
+\begin{document}
+
+% Seleciona idioma principal
+\selectlanguage{brazil}
+
+% Retira espaço extra obsoleto entre as frases
+\frenchspacing
+
+% ===========================
+% ELEMENTOS PRÉ-TEXTUAIS
+% ===========================
+\pretextual
+
+% --- Capa ---
+\imprimircapa
+
+% --- Folha de rosto ---
+\imprimirfolhaderosto*  % O asterisco (*) gera a ficha catalográfica no verso
+
+% --- Folha de aprovação (modelo) -> colocar depois ---
+% \imprimirfolhadeaprovacao ou incluir PDF.
+
+% --- Dedicatória ---
+% \begin{dedicatoria}
+%     \vspace*{\fill}
+%     \centering
+%     \noindent
+%     \textit{Texto da dedicatória.}
+%     \vspace*{\fill}
+% \end{dedicatoria}
+
+% --- Agradecimentos ---
+% \begin{agradecimentos}
+%     Agradecimentos aqui.
+% \end{agradecimentos}
+
+% --- Epígrafe ---
+% \begin{epigrafe}
+%     \vspace*{\fill}
+%     \begin{citacao}
+%         ``Texto da epígrafe.'' \\
+%         (Autor da epígrafe)
+%     \end{citacao}
+% \end{epigrafe}
+
+% --- Resumo em português ---
+\begin{resumo}
+    % TODO: Escrever o resumo do TCC (150 a 500 palavras).
+    O desenvolvimento de comportamentos adaptativos para Inteligência Artificial (IA) em jogos digitais é um desafio recorrente, frequentemente limitado à previsibilidade das Máquinas de Estados Finitos (FSM) ou à complexidade de modelar funções de recompensa em Aprendizado por Reforço (RL). Este trabalho investiga a integração de Grafos de Proveniência como mecanismo de \textit{Reward Shaping} para o treinamento de um agente RL utilizando o algoritmo \textit{Proximal Policy Optimization} (PPO). A metodologia consistiu no desenvolvimento de um \textit{vertical slice} de um jogo 2D (\textit{Chronicles Of The Lost Word}), onde sessões de jogo humano contra um chefe FSM (\textit{baseline}) tiveram suas cadeias causais registradas estruturalmente. A partir desses grafos, extraíram-se sequências de ações vitoriosas que serviram como sinal auxiliar de recompensa para o treinamento do agente na plataforma Unity ML-Agents. A avaliação quantitativa comparou 10 sessões jogáveis contra o chefe FSM e 10 contra o modelo PPO treinado. Os resultados evidenciaram que o agente PPO desenvolveu um comportamento mensuravelmente distinto, caracterizado por maior persistência e agressividade, resultando em combates mais longos e infligindo a única derrota ao jogador na amostra, embora tenha apresentado repetição mecânica em suas ações. Conclui-se que a utilização de sequências extraídas de proveniência para guiar o aprendizado por reforço é uma abordagem viável para gerar comportamentos alternativos em jogos digitais sem a necessidade de imitação direta.
+
+    \textbf{Palavras-chave}: Aprendizado por Reforço. Proveniência de Dados. PPO.
+    Jogos Digitais. Unity ML-Agents. Reward Shaping. FSM.
+\end{resumo}
+
+% --- Resumo em inglês (Abstract) ---
+\begin{resumo}[Abstract]
+    \begin{otherlanguage*}{english}
+        The development of adaptive behaviors for Artificial Intelligence (AI) in digital games is a recurring challenge, often limited by the predictability of Finite State Machines (FSM) or the complexity of modeling reward functions in Reinforcement Learning (RL). This study investigates the integration of Provenance Graphs as a Reward Shaping mechanism for training an RL agent using the Proximal Policy Optimization (PPO) algorithm. The methodology consisted of developing a vertical slice of a 2D game (\textit{Chronicles Of The Lost Word}), where human gameplay sessions against an FSM boss (baseline) had their causal chains structurally recorded. From these graphs, sequences of winning actions were extracted to serve as an auxiliary reward signal for training the agent on the Unity ML-Agents platform. The quantitative evaluation compared 10 playable sessions against the FSM boss and 10 against the trained PPO model. The results showed that the PPO agent developed a measurably distinct behavior, characterized by greater persistence and aggressiveness, resulting in longer combats and inflicting the only player defeat in the sample, although it presented mechanical repetition in its actions. It is concluded that using sequences extracted from provenance to guide reinforcement learning is a viable approach to generating alternative behaviors in digital games without the need for direct imitation.
+
+        \textbf{Keywords}: Reinforcement Learning. Data Provenance. PPO.
+        Digital Games. Unity ML-Agents. Reward Shaping. FSM.
+    \end{otherlanguage*}
+\end{resumo}
+
+% --- Lista de figuras ---
+\pdfbookmark[0]{\listfigurename}{lof}
+\listoffigures*
+\cleardoublepage
+
+% --- Lista de tabelas ---
+\pdfbookmark[0]{\listtablename}{lot}
+\listoftables*
+\cleardoublepage
+
+% --- Lista de algoritmos (opcional) ---
+% \pdfbookmark[0]{Lista de algoritmos}{loa}
+% \listofalgorithms
+% \cleardoublepage
+
+% --- Lista de abreviaturas e siglas ---
+\begin{siglas}
+    \item[FSM]   Máquina de Estados Finitos (\textit{Finite State Machine})
+    \item[IA]    Inteligência Artificial
+    \item[ML]    Aprendizado de Máquina (\textit{Machine Learning})
+    \item[ONNX]  Open Neural Network Exchange
+    \item[PPO]   Proximal Policy Optimization
+    \item[RL]    Aprendizado por Reforço (\textit{Reinforcement Learning})
+    \item[TCC]   Trabalho de Conclusão de Curso
+    \item[GAIL]  Generative Adversarial Imitation Learning
+    \item[NPC]   Personagem Não-Jogável (\textit{Non-Player Character})
+    \item[CSV]   \textit{Comma-Separated Values}
+\end{siglas}
+
+% --- Sumário ---
+\pdfbookmark[0]{\contentsname}{toc}
+\tableofcontents*
+\cleardoublepage
+
+% ===========================
+% ELEMENTOS TEXTUAIS
+% ===========================
+\textual
+
+% --- Capítulos ---
+\input{capitulos/01-introducao}
+\input{capitulos/02-referencial-teorico}
+\input{capitulos/03-metodologia}
+\input{capitulos/04-implementacao}
+\input{capitulos/05-avaliacao}
+\input{capitulos/06-resultados}
+\input{capitulos/07-discussao}
+\input{capitulos/08-conclusao}
+
+% ===========================
+% ELEMENTOS PÓS-TEXTUAIS
+% ===========================
+\postextual
+
+% --- Referências bibliográficas ---
+\bibliography{referencias}
+
+% --- Apêndices (opcional) ---
+% \begin{apendicesenv}
+%     \partapendices
+%     \input{apendices/apendice-a}
+% \end{apendicesenv}
+
+% --- Anexos (opcional) ---
+% \begin{anexosenv}
+%     \partanexos
+%     \input{anexos/anexo-a}
+% \end{anexosenv}
+
+\end{document}

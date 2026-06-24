@@ -1,0 +1,218 @@
+% =============================================================================
+% Capítulo 1 — Introdução
+% =============================================================================
+\chapter{Introdução}
+\label{cap:introducao}
+
+\section{Contextualização}
+\label{sec:contextualizacao}
+
+A indústria de jogos digitais consolidou-se como uma das mais relevantes no
+cenário do entretenimento contemporâneo, movimentando bilhões de dólares
+anualmente e alcançando audiências que superam outras mídias tradicionais
+\cite{newzoo2024}. Parte significativa dessa evolução deve-se à sofisticação
+crescente dos sistemas de Inteligência Artificial (IA) empregados no controle
+de Personagens Não-Jogáveis (NPCs), cuja qualidade comportamental exerce
+influência direta sobre a experiência do jogador \cite{millington2019ai}.
+
+Historicamente, a IA em jogos comerciais apoiou-se em técnicas determinísticas,
+como Máquinas de Estados Finitos (FSM) e Árvores de Comportamento
+(\textit{Behavior Trees}). Essas abordagens oferecem previsibilidade e
+facilidade de depuração, qualidades fundamentais em contextos de produção.
+Contudo, comportamentos baseados em regras fixas tendem a se tornar
+previsíveis após poucas interações, reduzindo o desafio percebido e
+comprometendo a rejogabilidade \cite{yannakakis2018artificial}.
+
+O Aprendizado por Reforço (\textit{Reinforcement Learning} --- RL) surgiu como
+alternativa promissora para a criação de agentes adaptativos, capazes de
+ajustar suas estratégias por meio de interações com o ambiente
+\cite{sutton2018reinforcement}. Plataformas como o Unity ML-Agents
+\cite{juliani2020unity} democratizaram o acesso a algoritmos de RL no contexto
+de motores de jogo, permitindo que desenvolvedores treinem NPCs diretamente
+em ambientes simulados. Em particular, o algoritmo \textit{Proximal Policy
+Optimization} (PPO) \cite{schulman2017ppo} destacou-se por sua estabilidade
+durante o treinamento e por seu bom desempenho em espaços de ação discretos,
+características que o tornam adequado para o controle de personagens em jogos
+2D.
+
+Entretanto, a adoção de RL em jogos não está isenta de desafios. Agentes
+treinados exclusivamente por tentativa e erro podem desenvolver
+comportamentos inesperados, difíceis de interpretar e de ajustar por
+projetistas de jogo. Nesse contexto, a busca por mecanismos que tornem o
+processo de aprendizado mais interpretável --- isto é, que permitam
+compreender \textit{por que} o agente aprendeu determinado comportamento ---
+constitui uma questão aberta e relevante para a área.
+
+\section{Problema de Pesquisa}
+\label{sec:problema}
+
+A definição de funções de recompensa constitui um dos aspectos mais críticos
+do treinamento por RL. Quando projetadas manualmente, essas funções tendem a
+ser exaustivas, frágeis e difíceis de generalizar: pequenas alterações no
+\textit{design} do jogo podem exigir reajustes significativos no esquema de
+recompensas \cite{ng1999reward}. Em cenários complexos, a engenharia manual
+de recompensas torna-se um gargalo de desenvolvimento.
+
+Uma alternativa amplamente explorada na literatura é a aprendizagem por
+imitação. Técnicas como \textit{Generative Adversarial Imitation Learning}
+(GAIL) permitem que um agente aprenda a replicar o comportamento de um
+jogador humano a partir de demonstrações gravadas. Embora eficaz em diversos
+cenários, essa abordagem apresenta uma limitação conceitual relevante: o
+agente tende a \textit{copiar} o comportamento observado, sem necessariamente
+compreender a relação causal entre as ações executadas e o sucesso obtido. O
+resultado é um modelo que reproduz padrões comportamentais sem internalizar a
+estratégia subjacente \cite{ho2016gail}.
+
+Emerge, portanto, uma questão de pesquisa: \textbf{é possível guiar o
+aprendizado por reforço de um agente de jogo utilizando informações causais
+extraídas de sessões de jogo anteriores, sem recorrer à imitação direta de
+demonstrações?}
+
+A Proveniência de Dados (\textit{Data Provenance}) oferece um caminho para
+endereçar essa questão. Originalmente desenvolvida para rastreamento de
+linhagem em bancos de dados e fluxos científicos, a proveniência permite
+registrar cadeias causais de eventos --- não apenas \textit{o que} aconteceu,
+mas \textit{por que} aconteceu, preservando relações de causa e efeito entre
+ações e consequências \cite{provenance_base}. Aplicada ao contexto de jogos
+digitais, a proveniência possibilita a construção de grafos que representam a
+sequência causal de eventos em uma sessão de jogo, desde ações do jogador até
+desfechos como vitória ou derrota \cite{kohwalter2020provenance}.
+
+\section{A Proposta}
+\label{sec:proposta}
+
+O presente trabalho propõe uma abordagem que integra Proveniência de Dados e
+Aprendizado por Reforço para o treinamento de um agente de jogo. A ideia
+central é utilizar grafos de proveniência, gerados a partir de sessões jogadas
+contra um chefe controlado por FSM, como fonte de informação causal para guiar
+o aprendizado de um agente PPO.
+
+O pipeline proposto opera da seguinte forma:
+
+\begin{enumerate}
+    \item Um jogador humano enfrenta o chefe baseline (FSM) em múltiplas
+          sessões de jogo.
+    \item O sistema de proveniência registra cada evento relevante da sessão
+          --- ataques, danos, pulos, esquivas, mortes --- como nós de um
+          grafo causal, preservando as relações de causa e efeito entre eles.
+    \item Um processo de filtragem seleciona apenas as sessões encerradas
+          com vitória do jogador e extrai, a partir dos grafos correspondentes,
+          sequências de ações que precederam eventos de dano no chefe.
+    \item Essas sequências vitoriosas são convertidas em um artefato
+          estruturado e carregadas por um módulo de \textit{Reward Shaping}
+          \cite{ng1999reward}, que concede recompensa adicional ao agente PPO
+          sempre que este executa padrões de ação compatíveis com os padrões
+          extraídos.
+    \item O agente é treinado com PPO padrão, utilizando o
+          \textit{Reward Shaping} por proveniência como sinal auxiliar. O
+          algoritmo continua explorando o ambiente livremente, mas recebe
+          orientação indireta das ações humanas bem-sucedidas.
+\end{enumerate}
+
+Essa abordagem distingue-se da imitação direta em um aspecto fundamental: o
+agente não reproduz trajetórias gravadas nem utiliza um discriminador
+adversário para aprender políticas. Em vez disso, ele recebe um sinal de
+recompensa adicional que reflete padrões causais associados ao sucesso,
+preservando a capacidade exploratória do PPO e mantendo a rastreabilidade das
+decisões de \textit{design} do treinamento.
+
+A contribuição acadêmica central, portanto, reside na demonstração de que
+sequências extraídas de grafos de proveniência podem ser utilizadas como sinal
+auxiliar de recompensa em um agente PPO, produzindo um chefe com comportamento
+mensuravelmente distinto do \textit{baseline} FSM em um ambiente de jogo 2D.
+
+\section{Objetivos}
+\label{sec:objetivos}
+
+\subsection{Objetivo Geral}
+\label{subsec:objetivo-geral}
+
+Desenvolver e avaliar um pipeline de integração entre Proveniência de Dados e
+Aprendizado por Reforço (PPO) para o treinamento de um agente de chefe em um
+\textit{vertical slice} de jogo 2D, utilizando sequências de ações vitoriosas
+extraídas de grafos de proveniência como \textit{Reward Shaping}, e comparando
+o comportamento resultante com um chefe \textit{baseline} controlado por
+Máquina de Estados Finitos.
+
+\subsection{Objetivos Específicos}
+\label{subsec:objetivos-especificos}
+
+Para alcançar o objetivo geral, foram definidos os seguintes objetivos
+específicos:
+
+\begin{enumerate}
+    \item Implementar o \textit{vertical slice} do jogo \textit{Chronicles Of
+          The Lost Word} em Unity, contendo uma arena de chefe com mecânicas
+          jogáveis de combate 2D.
+
+    \item Desenvolver um chefe \textit{baseline} controlado por Máquina de
+          Estados Finitos (FSM), com comportamento determinístico e
+          previsível, adequado para servir como referência de comparação.
+
+    \item Projetar e implementar um sistema de proveniência capaz de registrar
+          eventos de jogo como nós de um grafo causal, preservando relações
+          de causa e efeito entre ações do jogador e consequências no
+          ambiente.
+
+    \item Construir um processo automatizado de extração de sequências de
+          ações vitoriosas a partir dos grafos de proveniência gerados em
+          sessões contra o chefe FSM.
+
+    \item Implementar um módulo de \textit{Reward Shaping} que carregue as
+          sequências extraídas e conceda recompensa adicional a um agente PPO
+          durante o treinamento, quando este executar padrões de ação
+          compatíveis.
+
+    \item Treinar o agente PPO utilizando o Unity ML-Agents com o
+          \textit{Reward Shaping} por proveniência e integrar o modelo
+          resultante ao jogo em modo de inferência.
+
+    \item Realizar uma avaliação quantitativa comparativa entre o chefe FSM e
+          o chefe PPO, coletando métricas objetivas de desempenho em sessões
+          controladas.
+\end{enumerate}
+
+\section{Justificativa}
+\label{sec:justificativa}
+
+A criação de NPCs com comportamentos interessantes, desafiadores e variados é
+um problema recorrente no desenvolvimento de jogos. Embora técnicas
+determinísticas como FSM continuem dominantes na indústria, a demanda por
+experiências adaptativas motiva a investigação de abordagens baseadas em
+aprendizado de máquina \cite{yannakakis2018artificial}.
+
+O Aprendizado por Reforço oferece um arcabouço teórico robusto para esse fim,
+mas sua aplicação prática em jogos esbarra em dois obstáculos frequentes: a
+dificuldade de projetar funções de recompensa adequadas e a opacidade dos
+comportamentos aprendidos. Este trabalho contribui para o enfrentamento de
+ambos os obstáculos ao propor o uso de proveniência como ponte entre sessões
+de jogo humanas e o treinamento de agentes, introduzindo um mecanismo que é,
+ao mesmo tempo, automatizável --- pois não exige ajuste manual de recompensas
+para cada cenário --- e interpretável --- pois as sequências que geram
+recompensa adicional são derivadas de cadeias causais rastreáveis.
+
+Além disso, a abordagem proposta preenche uma lacuna na literatura ao combinar
+duas áreas tipicamente estudadas de forma independente: proveniência de dados
+em jogos e aprendizado por reforço para NPCs. A integração entre essas áreas
+permite transformar dados de \textit{gameplay} registrados com semântica
+causal em sinais de treinamento, sem recorrer a demonstrações diretas ou
+técnicas adversárias.
+
+\section{Organização do Trabalho}
+\label{sec:organizacao}
+
+O restante deste trabalho está organizado da seguinte forma. O
+\autoref{cap:referencial-teorico} apresenta o referencial teórico, abordando
+os fundamentos de Máquinas de Estados Finitos, Aprendizado por Reforço, PPO,
+Unity ML-Agents, Proveniência de Dados e \textit{Reward Shaping}. O
+\autoref{cap:metodologia} descreve a metodologia adotada, incluindo o
+pipeline de desenvolvimento, o protocolo de coleta de dados e as decisões de
+escopo. O \autoref{cap:implementacao} detalha a implementação técnica do
+\textit{vertical slice}, dos sistemas de proveniência e métricas, e da
+integração do modelo treinado. O \autoref{cap:avaliacao} apresenta o cenário e
+o protocolo de avaliação quantitativa. O \autoref{cap:resultados} expõe os
+resultados obtidos na comparação entre os chefes FSM e PPO. O
+\autoref{cap:discussao} discute os resultados, analisa as limitações do
+trabalho e sugere direções para trabalhos futuros. Por fim, o
+\autoref{cap:conclusao} sintetiza as contribuições do trabalho e apresenta as
+considerações finais.

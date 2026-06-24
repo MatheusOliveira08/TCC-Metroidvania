@@ -1,0 +1,216 @@
+% =============================================================================
+% Capítulo 6 — Resultados
+% =============================================================================
+\chapter{Resultados}
+\label{cap:resultados}
+
+Este capítulo apresenta os resultados quantitativos obtidos na avaliação
+comparativa entre os chefes FSM e PPO. Os dados são expostos de forma
+descritiva, sem interpretação ou análise de causalidade --- a discussão dos
+resultados é realizada no \autoref{cap:discussao}.
+
+% -----------------------------------------------------------------------------
+\section{Convergência do Treinamento}
+\label{sec:convergencia}
+
+O treinamento do agente PPO foi executado no \textit{run}
+\texttt{boss\_v1\_500k}, que atingiu o limite configurado de 500.000 passos de
+treinamento em aproximadamente 2.008 segundos (cerca de 33 minutos). A
+\autoref{tab:metricas-treino} apresenta as métricas finais registradas pelo
+TensorBoard.
+
+\begin{table}[htb]
+    \centering
+    \caption{Métricas finais do treinamento PPO (\textit{run}
+             \texttt{boss\_v1\_500k}).}
+    \label{tab:metricas-treino}
+    \begin{tabular}{l r}
+        \toprule
+        \textbf{Métrica}                 & \textbf{Valor} \\
+        \midrule
+        Recompensa média acumulada       & $1\,766{,}4$ \\
+        Desvio-padrão da recompensa      & $12{,}8$ \\
+        Tempo total de treinamento       & $2\,007{,}5$ s \\
+        Passos totais                    & $500\,000$ \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Dados coletados via TensorBoard.}
+\end{table}
+
+O baixo desvio-padrão da recompensa ($12{,}8$) em relação à média
+($1\,766{,}4$) indica que, nos episódios finais do treinamento, o agente
+apresentava desempenho consistente, conforme ilustrado na evolução da recompensa acumulada (\autoref{fig:cumulative-reward}). Além disso, a convergência do modelo também é evidenciada pela estabilização do erro de valor (\textit{Value Loss}), demonstrando que a rede neural aprendeu a prever as recompensas do ambiente com precisão ao longo dos 500 mil passos (\autoref{fig:tb-loss}).
+
+ \begin{figure}[htb]
+     \centering
+     \includegraphics[width=0.85\textwidth]{imagens/Environment-Cumulative Reward}
+     \caption{Evolução da recompensa acumulada ao longo do treinamento
+              (\textit{Environment/Cumulative Reward}).}
+     \label{fig:cumulative-reward}
+     \fonte{Captura do TensorBoard.}
+ \end{figure}
+
+ \begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.85\textwidth]{imagens/Losses-Value Loss.png}
+    \caption{Evolução do erro de valor (\textit{Value Loss}) indicando a estabilização do aprendizado da rede neural.}
+    \label{fig:tb-loss}
+    \fonte{Captura do TensorBoard.}
+\end{figure}
+
+% TODO: Inserir gráfico de Episode Length
+% \begin{figure}[htb]
+%     \centering
+%     \includegraphics[width=0.85\textwidth]{Environment-Episode Length}
+%     \caption{Evolução do comprimento dos episódios ao longo do treinamento
+%              (\textit{Environment/Episode Length}).}
+%     \label{fig:episode-length}
+%     \fonte{Captura do TensorBoard.}
+% \end{figure}
+
+% -----------------------------------------------------------------------------
+\section{Comparativo Quantitativo: FSM vs.\ PPO}
+\label{sec:comparativo}
+
+Esta seção apresenta os dados numéricos das 20 sessões oficiais da
+avaliação: 10 contra o chefe FSM e 10 contra o chefe PPO.
+
+\subsection{Resultados Gerais}
+\label{subsec:resultados-gerais}
+
+A \autoref{tab:resultados-gerais} sintetiza os resultados globais por
+condição experimental.
+
+\begin{table}[htb]
+    \centering
+    \caption{Resultados gerais da avaliação por condição experimental.}
+    \label{tab:resultados-gerais}
+    \begin{tabular}{l r r r r}
+        \toprule
+        \textbf{Condição}
+            & \textbf{Sessões}
+            & \textbf{Vitórias}
+            & \textbf{Derrotas}
+            & \textbf{Taxa de vitória} \\
+        \midrule
+        FSM & 10 & 10 & 0 & 100\% \\
+        PPO & 10 &  9 & 1 &  90\% \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Dados da coleta oficial.}
+\end{table}
+
+Na condição FSM, o jogador venceu todas as 10 sessões. Na condição PPO, o
+jogador venceu 9 das 10 sessões, com uma derrota registrada --- a única
+ocorrência em toda a amostra de 20 sessões em que o chefe eliminou o jogador.
+
+\subsection{Métricas de Combate}
+\label{subsec:metricas-combate}
+
+A \autoref{tab:metricas-comparativas} apresenta as médias e desvios-padrão
+das métricas de combate para cada condição.
+
+\begin{table}[htb]
+    \centering
+    \caption{Médias e desvios-padrão das métricas de combate por condição
+             (média $\pm$ desvio-padrão, $n = 10$ por condição).}
+    \label{tab:metricas-comparativas}
+    \begin{tabular}{l r r}
+        \toprule
+        \textbf{Métrica}
+            & \textbf{FSM}
+            & \textbf{PPO} \\
+        \midrule
+        Duração da luta (s)
+            & $5{,}97 \pm 2{,}79$
+            & $15{,}18 \pm 7{,}74$ \\
+        \addlinespace
+        Dano recebido pelo chefe
+            & $100{,}00 \pm 0{,}00$
+            & $95{,}00 \pm 15{,}81$ \\
+        \addlinespace
+        Dano recebido pelo jogador
+            & $50{,}00 \pm 14{,}14$
+            & $56{,}00 \pm 22{,}21$ \\
+        \addlinespace
+        Pulos do jogador
+            & $0{,}30 \pm 0{,}48$
+            & $3{,}50 \pm 3{,}44$ \\
+        \addlinespace
+        Ataques do jogador
+            & $10{,}70 \pm 0{,}95$
+            & $15{,}80 \pm 2{,}57$ \\
+        \addlinespace
+        \textit{Dashes} do jogador
+            & $0{,}20 \pm 0{,}63$
+            & $0{,}50 \pm 1{,}08$ \\
+        \addlinespace
+        Ataques do chefe
+            & $5{,}60 \pm 1{,}58$
+            & $296{,}60 \pm 186{,}86$ \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Dados da coleta oficial (20 sessões).}
+\end{table}
+
+Observa-se que a duração média das sessões na condição PPO ($15{,}18$ s) é
+aproximadamente 2,5 vezes superior à da condição FSM ($5{,}97$ s). O dano
+recebido pelo chefe foi de $100{,}00$ em todas as sessões FSM, enquanto na
+condição PPO a média foi de $95{,}00$, refletindo a sessão em que o jogador
+foi derrotado antes de eliminar o chefe. O dano recebido pelo jogador foi
+ligeiramente superior na condição PPO ($56{,}00$) em relação à FSM
+($50{,}00$).
+
+A contagem de ataques do jogador foi maior na condição PPO ($15{,}80$) do que
+na FSM ($10{,}70$), assim como a contagem de pulos ($3{,}50$ vs.\ $0{,}30$) e
+\textit{dashes} ($0{,}50$ vs.\ $0{,}20$).
+
+A diferença mais acentuada entre as duas condições reside na contagem de
+ataques do chefe: $5{,}60 \pm 1{,}58$ na condição FSM contra $296{,}60 \pm
+186{,}86$ na condição PPO.
+
+\subsection{Distribuição de Ações do Agente PPO}
+\label{subsec:distribuicao-acoes}
+
+Para a condição PPO, o sistema de métricas registrou a contagem individual de
+cada uma das seis ações discretas do \texttt{BossAgent} ao longo das 10
+sessões oficiais. A \autoref{tab:acoes-ppo} apresenta esses dados.
+
+\begin{table}[htb]
+    \centering
+    \caption{Distribuição das ações discretas do agente PPO nas 10 sessões
+             oficiais.}
+    \label{tab:acoes-ppo}
+    \begin{tabular}{l r r r}
+        \toprule
+        \textbf{Ação}
+            & \textbf{Total}
+            & \textbf{Média $\pm$ DP}
+            & \textbf{\% aprox.} \\
+        \midrule
+        \textit{Attack}
+            & 2\,966  & $296{,}60 \pm 186{,}86$ & 39,05\% \\
+        \textit{Jump}
+            & 2\,123  & $212{,}30 \pm 149{,}10$ & 27,95\% \\
+        \textit{Dash}
+            &    796  & $79{,}60 \pm 40{,}77$   & 10,48\% \\
+        \textit{Move Right}
+            &    698  & $69{,}80 \pm 31{,}94$   &  9,19\% \\
+        \textit{Move Left}
+            &    550  & $55{,}00 \pm 31{,}67$   &  7,24\% \\
+        \textit{Idle}
+            &    463  & $46{,}30 \pm 25{,}38$   &  6,10\% \\
+        \midrule
+        \textbf{Total}
+            & \textbf{7\,596} & --- & 100\% \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Dados da coleta oficial.}
+\end{table}
+
+As ações \textit{Attack} e \textit{Jump} correspondem, juntas, a
+aproximadamente 67\% de todas as ações executadas pelo agente. As ações de
+movimentação (\textit{Move Left} e \textit{Move Right}) somam 16,43\%, e o
+\textit{Idle} representa 6,10\% das decisões. As três ações que participam
+do mecanismo de \textit{Reward Shaping} --- \textit{Attack}, \textit{Jump} e
+\textit{Dash} --- totalizam 77,48\% das ações executadas.

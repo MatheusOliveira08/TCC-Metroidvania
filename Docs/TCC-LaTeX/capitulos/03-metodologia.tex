@@ -1,0 +1,514 @@
+% =============================================================================
+% Capítulo 3 — Metodologia
+% =============================================================================
+\chapter{Metodologia}
+\label{cap:metodologia}
+
+Este capítulo descreve as escolhas metodológicas que orientaram o
+desenvolvimento do presente trabalho. São apresentados a concepção do
+protótipo jogável, o ambiente técnico e as ferramentas utilizadas, o
+pipeline completo de coleta, extração e treinamento, o protocolo de avaliação
+quantitativa e, por fim, as decisões de escopo que delimitaram a contribuição
+do trabalho.
+
+% -----------------------------------------------------------------------------
+\section{Concepção do Protótipo (\textit{Vertical Slice})}
+\label{sec:vertical-slice}
+
+A estratégia de desenvolvimento adotada foi a construção de um
+\textit{vertical slice}: um recorte funcional do jogo que implementa, de
+ponta a ponta, todas as camadas necessárias para validar a proposta --- desde
+a jogabilidade até a exportação de métricas --- sem a pretensão de representar
+um produto comercial completo. Essa abordagem é recorrente na indústria de
+jogos quando o objetivo é demonstrar a viabilidade de um conceito em escopo
+controlado \cite{yannakakis2018artificial}.
+
+O protótipo, denominado \textit{Chronicles Of The Lost Word}, consiste em um
+jogo 2D de ação construído no motor Unity. O recorte implementado concentra-se
+exclusivamente em uma arena de combate contra um chefe (\textit{boss}),
+excluindo elementos como exploração de fases, sistemas de progressão,
+narrativa interativa ou interfaces de menu. Essa restrição é intencional: o
+escopo reduzido permite isolar a variável de interesse --- o comportamento do
+chefe --- e avaliar o impacto do pipeline de proveniência e \textit{Reward
+Shaping} sem interferência de sistemas periféricos.
+
+\subsection{O Personagem Jogável (Elian)}
+\label{subsec:elian}
+
+O personagem controlado pelo jogador, Elian, possui um conjunto de mecânicas
+de ação que define o espaço de possibilidades da interação com o chefe:
+
+\begin{itemize}
+    \item \textbf{Movimento horizontal}: deslocamento à esquerda e à direita
+          no plano da arena;
+    \item \textbf{Pulo} (\textit{PlayerJump}): salto vertical com detecção
+          de solo via \textit{ground check};
+    \item \textbf{Ataque} (\textit{PlayerAttack}): golpe corpo a corpo com
+          área de efeito definida por \texttt{OverlapBoxAll}, aplicando dano
+          em alvos que implementam a interface \texttt{IDamageable};
+    \item \textbf{Dash} (\textit{PlayerDash}): avanço rápido horizontal com
+          breve período de invulnerabilidade;
+    \item \textbf{Vida} (\textit{PlayerHealth}): sistema de pontos de vida
+          com dano recebido, morte e eventos associados.
+\end{itemize}
+
+Essas três ações ofensivas e evasivas --- pulo, ataque e \textit{dash} ---
+constituem o vocabulário de ações registrado pelo sistema de proveniência e,
+posteriormente, utilizado na extração de sequências vitoriosas. A escolha
+desse conjunto restrito foi deliberada: um vocabulário de ação compacto
+facilita a identificação de padrões causais nos grafos de proveniência e
+mantém o espaço de sequências possíveis tratável computacionalmente.
+
+\subsection{A Arena de Combate}
+\label{subsec:arena}
+
+A arena consiste em um espaço horizontal delimitado por paredes invisíveis,
+com plataforma plana e sem obstáculos adicionais. Esse \textit{design}
+minimalista garante que as diferenças de comportamento entre os chefes FSM e
+PPO reflitam exclusivamente suas estratégias de combate, sem influência de
+variáveis ambientais como plataformas elevadas, armadilhas ou itens coletáveis.
+
+Cada sessão de combate é gerenciada pelo componente \texttt{ArenaManager}, que
+controla o ciclo de vida da sessão: início, detecção de vitória (morte do
+chefe) ou derrota (morte do jogador), e encerramento com exportação automática
+de métricas.
+
+% -----------------------------------------------------------------------------
+\section{Arquitetura e Ferramentas}
+\label{sec:arquitetura-ferramentas}
+
+O desenvolvimento do protótipo apoiou-se em um conjunto de ferramentas
+selecionadas por sua adequação ao domínio de jogos 2D com aprendizado por
+reforço. A \autoref{tab:ambiente-tecnico} sintetiza as versões utilizadas.
+
+\begin{table}[htb]
+    \centering
+    \caption{Ambiente técnico utilizado no desenvolvimento e treinamento.}
+    \label{tab:ambiente-tecnico}
+    \begin{tabular}{l l}
+        \toprule
+        \textbf{Componente}         & \textbf{Versão / Identificação} \\
+        \midrule
+        Unity Engine                & 6000.3.17f1                     \\
+        Linguagem de scripts        & C\#                             \\
+        ML-Agents (pacote Unity)    & 4.0.3                           \\
+        Input System (pacote Unity) & 1.19.0                          \\
+        Test Framework (Unity)      & 1.6.0                           \\
+        Python                      & 3.10.12                         \\
+        \texttt{mlagents} (Python)  & 1.1.0                           \\
+        PyTorch                     & 2.8.0+cpu                       \\
+        ONNX                        & 1.15.0                          \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+\subsection{Unity como Motor de Jogo e Ambiente de Simulação}
+\label{subsec:unity-motor}
+
+O Unity \cite{unity2024} foi escolhido como motor de jogo por reunir
+capacidades de desenvolvimento 2D nativo --- incluindo sistemas de física
+(\texttt{Rigidbody2D}, \texttt{BoxCollider2D}), renderização por
+\textit{sprites} e \textit{Input System} moderno --- com suporte integrado ao
+\textit{toolkit} de aprendizado de máquina ML-Agents
+\cite{juliani2020unity}. Essa integração nativa elimina a necessidade de
+adaptadores externos entre o ambiente de simulação e o processo de
+treinamento, simplificando o pipeline.
+
+Toda a lógica do jogo foi implementada em C\#, organizada em módulos com
+responsabilidades claras: \textit{Player}, \textit{Boss FSM}, \textit{Boss
+PPO}, Proveniência, Arena e Métricas. Cada módulo comunica-se por meio de
+eventos (\textit{delegates} e \texttt{Action<T>} do C\#), seguindo o
+princípio de comunicação dirigida por eventos para minimizar o acoplamento
+entre componentes.
+
+\subsection{Unity ML-Agents como Ponte para RL}
+\label{subsec:ml-agents-ponte}
+
+O Unity ML-Agents \textit{Toolkit} \cite{juliani2020unity} atua como
+intermediário entre o ambiente de jogo e os algoritmos de aprendizado por
+reforço. No lado Unity, o agente é implementado como um componente C\# que
+herda da classe \texttt{Agent}, expondo métodos para coleta de observações
+(\texttt{CollectObservations}), execução de ações
+(\texttt{OnActionReceived}) e atribuição de recompensas
+(\texttt{AddReward}). No lado Python, o treinador executa o algoritmo PPO
+\cite{schulman2017ppo} utilizando PyTorch como \textit{backend} de
+computação, comunicando-se com o Unity via protocolo gRPC.
+
+Ao término do treinamento, o modelo é exportado em formato ONNX
+\cite{onnx2019}, permitindo inferência diretamente no Unity sem dependência
+do processo Python. Essa separação entre fase de treinamento e fase de
+inferência é essencial para a avaliação: o modelo avaliado opera de forma
+autônoma, determinística e reprodutível.
+
+% -----------------------------------------------------------------------------
+\section{Pipeline de Treinamento e Coleta}
+\label{sec:pipeline}
+
+O pipeline de desenvolvimento segue um fluxo sequencial de seis etapas, cada
+uma produzindo artefatos consumidos pela etapa seguinte. A
+\autoref{fig:pipeline} ilustra esse fluxo de forma esquemática.
+
+ \begin{figure}[htb]
+     \centering
+     \includegraphics[width=0.85\textwidth]{imagens/pipeline-treinamento}
+     \caption{Pipeline de treinamento e coleta: do \textit{gameplay} humano
+              à avaliação quantitativa FSM vs.\ PPO.}
+     \label{fig:pipeline}
+     \fonte{Elaborado pelo autor.}
+ \end{figure}
+
+\subsection{Etapa 1 --- Coleta de Sessões contra o Chefe FSM}
+\label{subsec:etapa1}
+
+Na primeira etapa, o desenvolvedor joga múltiplas sessões como Elian contra o
+chefe controlado por FSM. O chefe FSM opera com quatro estados determinísticos
+--- \textit{Idle}, \textit{Chase}, \textit{Attack} e \textit{Retreat} ---
+com parâmetros fixos de velocidade, alcance de ataque e \textit{cooldown}. A
+previsibilidade do FSM é uma característica desejável nesta etapa, pois
+garante que as sessões coletadas reflitam o comportamento do jogador humano
+em condições estáveis e reprodutíveis.
+
+\subsection{Etapa 2 --- Registro de Proveniência}
+\label{subsec:etapa2}
+
+Durante cada sessão, o sistema de proveniência registra automaticamente os
+eventos de \textit{gameplay} como nós de um grafo causal. Cada nó contém
+atributos padronizados: identificador do evento (\texttt{eventId}), marcação
+temporal (\texttt{timestamp}), identificador do ator (\texttt{actorId}), tipo
+de ação (\texttt{actionType}), posição no espaço (\texttt{position}), valor
+associado (\texttt{value}) e referência ao evento causador
+(\texttt{parentEventId}). Essa última referência é a ligação causal que
+transforma a sequência temporal de eventos em uma cadeia causal explícita.
+
+O componente \texttt{ProvenanceLogger} escuta eventos emitidos pelos scripts
+de \textit{gameplay} --- \texttt{PlayerController}, \texttt{PlayerCombat},
+\texttt{PlayerHealth}, \texttt{BossHealth} e \texttt{BossFsmController} ---
+e registra cada um no grafo em memória, gerenciado pelo componente
+\texttt{ProvenanceGraph}. Ao término da sessão, o
+\texttt{ProvenanceExporter} serializa o grafo completo em formato JSON.
+
+\subsection{Etapa 3 --- Extração de Sequências Vitoriosas}
+\label{subsec:etapa3}
+
+A extração de padrões comportamentais a partir dos grafos de proveniência é
+realizada por um script Python dedicado. Esse script opera em três passos
+sequenciais:
+
+\begin{enumerate}
+    \item \textbf{Filtragem}: lê os arquivos JSON exportados e seleciona
+          apenas as sessões cujo campo \texttt{result} é igual a
+          \texttt{"victory"}, descartando sessões encerradas com derrota ou
+          incompletas;
+    \item \textbf{Localização de eventos-alvo}: percorre os nós de cada
+          grafo filtrado e identifica todas as ocorrências do evento
+          \texttt{BossDamageTaken}, que indica que o chefe recebeu dano;
+    \item \textbf{Extração de sequências}: para cada evento
+          \texttt{BossDamageTaken}, retrocede na cadeia causal e coleta as
+          três ações imediatamente anteriores pertencentes ao vocabulário de
+          ações permitidas (\texttt{PlayerJump}, \texttt{PlayerAttack},
+          \texttt{PlayerDash}), formando uma sequência de tamanho fixo.
+\end{enumerate}
+
+A \autoref{tab:config-extracao} resume os parâmetros utilizados nesse
+processo.
+
+\begin{table}[htb]
+    \centering
+    \caption{Configuração do processo de extração de sequências vitoriosas.}
+    \label{tab:config-extracao}
+    \begin{tabular}{l l}
+        \toprule
+        \textbf{Parâmetro}    & \textbf{Valor}                                  \\
+        \midrule
+        Ações permitidas      & \texttt{PlayerJump}, \texttt{PlayerAttack},
+                                \texttt{PlayerDash}                              \\
+        Tamanho da sequência  & 3                                                \\
+        Evento-alvo           & \texttt{BossDamageTaken}                         \\
+        Formato de saída      & JSON (\texttt{winning\_sequences.json})          \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+O resultado é um arquivo JSON contendo a lista de sequências de ações que, em
+sessões vitoriosas, precederam causalmente eventos de dano no chefe. Esse
+artefato não constitui uma demonstração direta de \textit{gameplay}: ele
+codifica \textit{padrões} de ação associados a desfechos favoráveis, sem
+registrar trajetórias completas de estados e ações.
+
+\subsection{Etapa 4 --- Treinamento PPO com Reward Shaping por Proveniência}
+\label{subsec:etapa4}
+
+O agente PPO foi treinado utilizando o Unity ML-Agents com o algoritmo PPO
+como treinador principal \cite{schulman2017ppo}. A configuração do
+treinamento foi definida em um arquivo YAML consumido pelo treinador Python.
+A \autoref{tab:config-ppo} apresenta os hiperparâmetros utilizados.
+
+\begin{table}[htb]
+    \centering
+    \caption{Hiperparâmetros do treinamento PPO.}
+    \label{tab:config-ppo}
+    \begin{tabular}{l r}
+        \toprule
+        \textbf{Hiperparâmetro}          & \textbf{Valor}  \\
+        \midrule
+        \texttt{trainer\_type}           & PPO             \\
+        \texttt{batch\_size}             & 1\,024          \\
+        \texttt{buffer\_size}            & 10\,240         \\
+        \texttt{learning\_rate}          & $3{,}0 \times 10^{-4}$ \\
+        \texttt{beta} (entropia)         & $5{,}0 \times 10^{-3}$ \\
+        \texttt{epsilon} (clipping)      & 0,2             \\
+        \texttt{lambd} (GAE-$\lambda$)   & 0,95            \\
+        \texttt{num\_epoch}              & 3               \\
+        \texttt{hidden\_units}           & 128             \\
+        \texttt{num\_layers}             & 2               \\
+        \texttt{max\_steps}              & 500\,000        \\
+        \texttt{time\_horizon}           & 64              \\
+        Sinal de recompensa              & Extrínseco      \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+Durante o treinamento, o componente \texttt{ProvenanceRewardShaper} mantém um
+\textit{buffer} circular das últimas ações executadas pelo agente. A cada
+passo de decisão, o \textit{buffer} é comparado com as sequências vitoriosas
+carregadas do arquivo JSON. Quando há correspondência exata entre o
+\textit{buffer} e alguma sequência vitoriosa, uma recompensa adicional de
+$+2{,}0$ é concedida ao agente via \texttt{AddReward}. Essa recompensa
+auxiliar opera em conjunto com a recompensa extrínseca do ambiente, sem
+substituí-la.
+
+Um aspecto de projeto relevante é a correspondência de vocabulário entre as
+ações do agente PPO e as ações humanas registradas na proveniência. As ações
+discretas do agente --- pulo, ataque e \textit{dash} --- registram no
+\textit{Reward Shaper} as mesmas \textit{strings} utilizadas pelo sistema de
+proveniência (\texttt{PlayerJump}, \texttt{PlayerAttack},
+\texttt{PlayerDash}), garantindo compatibilidade direta na comparação de
+sequências.
+
+O \textit{run} final de treinamento, identificado como
+\texttt{boss\_v1\_500k}, alcançou 500.000 passos de treinamento e produziu o
+modelo \texttt{BossAgent.onnx}, que foi exportado e integrado ao projeto
+Unity em modo \texttt{InferenceOnly} para a etapa de avaliação.
+
+\subsection{Etapa 5 --- Integração e Preparação para Avaliação}
+\label{subsec:etapa5}
+
+O modelo ONNX resultante foi integrado ao projeto Unity e associado ao
+\textit{prefab} do chefe PPO. Antes da coleta oficial de dados, foi
+necessário ajustar as cenas de avaliação para garantir condições equivalentes
+entre as duas condições experimentais:
+
+\begin{itemize}
+    \item Adição do componente \texttt{PlayerHealth} com 100 pontos de vida
+          ao personagem Elian, permitindo que sessões terminassem por derrota
+          do jogador;
+    \item Implementação do componente \texttt{BossAttackDamage}, que aplica
+          dano real de 10 pontos quando o chefe (FSM ou PPO) ataca dentro do
+          alcance, com \textit{cooldown} de 0,8 segundos;
+    \item Equalização de parâmetros de dano e alcance entre as cenas FSM e
+          PPO, eliminando vieses de configuração.
+\end{itemize}
+
+\subsection{Etapa 6 --- Avaliação Quantitativa}
+\label{subsec:etapa6}
+
+A etapa final consiste na coleta controlada de sessões jogáveis para
+comparação. O protocolo de avaliação define a realização de 10 sessões contra
+o chefe FSM e 10 sessões contra o chefe PPO, todas jogadas pelo
+desenvolvedor em condições padronizadas. As métricas são exportadas
+automaticamente em formato CSV pelo sistema \texttt{GameMetrics} e
+\texttt{GameMetricsExporter}, incluindo duração da sessão, dano recebido
+pelo chefe, dano recebido pelo jogador, contagem de ações do jogador e
+contagem de ações do chefe.
+
+A análise dos dados é apresentada nos capítulos de Avaliação e Resultados.
+
+% -----------------------------------------------------------------------------
+\section{Protocolo de Avaliação}
+\label{sec:protocolo-avaliacao}
+
+A avaliação quantitativa segue um protocolo controlado, projetado para
+maximizar a comparabilidade entre as duas condições experimentais dentro das
+restrições de escopo do trabalho.
+
+\subsection{Condições Experimentais}
+\label{subsec:condicoes}
+
+Duas condições foram definidas:
+
+\begin{itemize}
+    \item \textbf{Condição FSM}: o jogador enfrenta o chefe controlado por
+          Máquina de Estados Finitos, na cena \texttt{ArenaChefe.unity};
+    \item \textbf{Condição PPO}: o jogador enfrenta o chefe controlado pelo
+          modelo PPO treinado, em modo \texttt{InferenceOnly}, na cena
+          \texttt{BossArena\_PPO.unity}.
+\end{itemize}
+
+Em ambas as condições, o personagem Elian é controlado pelo desenvolvedor com
+as mesmas mecânicas e parâmetros. Os parâmetros de dano do chefe (10 pontos
+por ataque, alcance de 1,25 unidades, \textit{cooldown} de 0,8 segundos)
+e a vida do jogador (100 pontos) são idênticos nas duas cenas, garantindo
+que diferenças observadas nas métricas reflitam exclusivamente o
+comportamento do chefe.
+
+\subsection{Tamanho da Amostra}
+\label{subsec:amostra}
+
+A amostra oficial é composta por 20 sessões: 10 na condição FSM e 10 na
+condição PPO. Embora o tamanho da amostra seja limitado, ele é suficiente para
+identificar diferenças comportamentais mensuráveis entre as duas condições,
+que é o objetivo do trabalho. Não se pretende, com essa amostra, estabelecer
+significância estatística robusta ou generalizar resultados para outros
+contextos --- essas restrições são discutidas como limitações no
+\autoref{cap:discussao}.
+
+\subsection{Métricas Coletadas}
+\label{subsec:metricas}
+
+As métricas são registradas automaticamente pelo sistema
+\texttt{GameMetrics} e exportadas em CSV com formato invariante. As métricas
+principais são:
+
+\begin{itemize}
+    \item \textbf{Resultado da sessão}: vitória, derrota ou encerramento
+          prematuro;
+    \item \textbf{Duração da sessão} (em segundos);
+    \item \textbf{Dano total recebido pelo chefe}
+          (\texttt{boss\_damage\_taken});
+    \item \textbf{Dano total recebido pelo jogador}
+          (\texttt{player\_damage\_taken});
+    \item \textbf{Contagem de ações do jogador}: pulos, ataques e
+          \textit{dashes};
+    \item \textbf{Contagem de ações do chefe}: ataques realizados; para o
+          PPO, inclui-se também a distribuição completa das seis ações
+          discretas (Idle, Move Left, Move Right, Jump, Attack, Dash).
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Decisões de Escopo e Limitações Metodológicas}
+\label{sec:decisoes-escopo}
+
+O escopo do trabalho foi delimitado por decisões deliberadas, tomadas ao
+longo do desenvolvimento para manter a viabilidade do TCC sem comprometer a
+integridade dos resultados. Esta seção documenta as decisões mais relevantes
+e suas justificativas.
+
+\subsection{Remoção da Aprendizagem por Imitação (GAIL)}
+\label{subsec:remocao-gail}
+
+O plano inicial do trabalho previa a utilização de \textit{Generative
+Adversarial Imitation Learning} (GAIL) \cite{ho2016gail} como mecanismo
+complementar de treinamento, a partir de demonstrações gravadas em formato
+\texttt{.demo} do ML-Agents. Essa abordagem foi removida do escopo por duas
+razões:
+
+\begin{enumerate}
+    \item O GAIL introduziria uma dependência de demonstrações diretas,
+          conflitando com a proposta central de utilizar proveniência --- e
+          não imitação --- como fonte de orientação para o aprendizado;
+    \item A coexistência de GAIL e \textit{Reward Shaping} por proveniência
+          dificultaria a atribuição de efeitos: seria impossível determinar
+          se o comportamento aprendido resultou da imitação, do
+          \textit{Reward Shaping} ou de sua combinação.
+\end{enumerate}
+
+A remoção do GAIL reforça a contribuição acadêmica do trabalho ao isolar o
+efeito da proveniência como único mecanismo auxiliar de orientação.
+
+\subsection{Remoção de Playtesters Externos}
+\label{subsec:remocao-playtesters}
+
+O plano original previa a participação de jogadores externos
+(\textit{playtesters}) e a aplicação de questionários de experiência. Essa
+etapa foi removida por duas razões de escopo:
+
+\begin{enumerate}
+    \item A logística de recrutamento, consentimento e coleta presencial de
+          dados ultrapassava o prazo disponível para o TCC;
+    \item A inclusão de variáveis subjetivas (percepção de dificuldade,
+          satisfação) ampliaria o escopo analítico para além do que o
+          trabalho se propõe a endereçar.
+\end{enumerate}
+
+Em substituição, a avaliação foi redesenhada como uma coleta quantitativa
+controlada, conduzida pelo próprio desenvolvedor. Essa escolha é uma limitação
+reconhecida --- o avaliador conhece os padrões de ambos os chefes --- mas
+garante padronização absoluta das condições de teste e viabilidade temporal.
+
+\subsection{Modelo Congelado na Avaliação}
+\label{subsec:modelo-congelado}
+
+O modelo PPO utilizado na avaliação é o resultado do \textit{run} final de
+treinamento (\texttt{boss\_v1\_500k}), exportado como arquivo ONNX e
+integrado ao Unity em modo \texttt{InferenceOnly}. Após a exportação, o
+modelo não foi retreinado, ajustado ou modificado em nenhuma circunstância,
+inclusive após a adição do sistema de vida real do jogador
+(\texttt{PlayerHealth}).
+
+Essa decisão foi deliberada: a avaliação deve medir o comportamento do modelo
+congelado, não de um modelo ajustado \textit{post hoc} com base nos
+resultados observados. Como consequência, o modelo avaliado não observa a
+vida real do jogador como entrada --- essa observação era um
+\textit{placeholder} na arquitetura utilizada durante o treino. Essa limitação
+é documentada e discutida no \autoref{cap:discussao}.
+
+\subsection{Preservação do Comportamento Repetitivo}
+\label{subsec:preservacao-spam}
+
+Durante as sessões de avaliação, observou-se que o agente PPO apresenta alta
+frequência de ações de ataque (\textit{spam}), resultando em comportamento
+visualmente repetitivo. Embora uma intervenção no código pudesse limitar essa
+frequência --- por exemplo, adicionando um \textit{cooldown} forçado às
+ações --- optou-se por preservar o comportamento original do modelo.
+
+A justificativa é metodológica: o comportamento repetitivo é um resultado
+experimental do modelo congelado. Corrigi-lo antes da análise
+descaracterizaria a avaliação, introduzindo uma modificação \textit{post hoc}
+que alteraria os dados coletados sem refletir uma melhoria genuína no
+aprendizado do agente.
+
+\subsection{Síntese das Decisões}
+\label{subsec:sintese-decisoes}
+
+A \autoref{tab:decisoes-escopo} sintetiza as decisões de escopo e suas
+justificativas.
+
+\begin{table}[htb]
+    \centering
+    \caption{Decisões de escopo e justificativas.}
+    \label{tab:decisoes-escopo}
+    \begin{tabular}{p{5.5cm} p{8cm}}
+        \toprule
+        \textbf{Decisão} & \textbf{Justificativa} \\
+        \midrule
+        Remover GAIL e demonstrações &
+            Preservar a proveniência como único sinal auxiliar, isolando
+            a contribuição acadêmica. \\
+        \addlinespace
+        Remover playtesters e questionários &
+            Viabilidade temporal e foco em avaliação quantitativa objetiva. \\
+        \addlinespace
+        Não retreinar o modelo após adicionar vida real &
+            Garantir que a avaliação meça o modelo congelado, sem
+            ajustes \textit{post hoc}. \\
+        \addlinespace
+        Preservar o \textit{spam} de ataque do PPO &
+            O comportamento é resultado experimental; corrigi-lo
+            descaracterizaria a avaliação. \\
+        \addlinespace
+        Desabilitar JSON de proveniência na cena PPO &
+            A métrica principal é o CSV; o JSON da cena FSM já
+            evidencia o mecanismo de proveniência. \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+Essas decisões refletem a prioridade de manter a integridade metodológica do
+trabalho dentro das restrições práticas de um Trabalho de Conclusão de Curso.
+As limitações decorrentes são reconhecidas e discutidas no
+\autoref{cap:discussao}, juntamente com sugestões de trabalhos futuros que
+poderiam endereçá-las.

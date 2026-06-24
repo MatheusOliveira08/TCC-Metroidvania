@@ -1,0 +1,411 @@
+% =============================================================================
+% Capítulo 2 — Referencial Teórico
+% =============================================================================
+\chapter{Referencial Teórico}
+\label{cap:referencial-teorico}
+
+Este capítulo apresenta os fundamentos teóricos que sustentam o presente
+trabalho. São abordados os conceitos de Máquinas de Estados Finitos e sua
+aplicação como técnica de controle de NPCs em jogos digitais, os princípios do
+Aprendizado por Reforço com ênfase no algoritmo \textit{Proximal Policy
+Optimization}, a plataforma Unity ML-Agents como ambiente de treinamento, o
+conceito de Proveniência de Dados e sua aplicação ao rastreamento causal em
+sessões de jogo, e a técnica de \textit{Reward Shaping} como mecanismo de
+orientação do aprendizado.
+
+% -----------------------------------------------------------------------------
+\section{Máquinas de Estados Finitos em Jogos}
+\label{sec:fsm}
+
+Uma Máquina de Estados Finitos (FSM --- \textit{Finite State Machine}) é um
+modelo computacional composto por um conjunto finito de estados, um conjunto de
+transições entre esses estados e um estado inicial. Em cada instante, o sistema
+encontra-se em exatamente um estado, e a ocorrência de um evento ou o
+atendimento de uma condição pré-definida dispara uma transição para outro
+estado \cite{millington2019ai}.
+
+No contexto de jogos digitais, FSMs constituem uma das técnicas mais
+difundidas para o controle de NPCs. Cada estado representa um comportamento
+distinto do personagem --- como perseguir, atacar, recuar ou permanecer em
+espera --- e as transições são determinadas por condições do ambiente, como a
+distância até o jogador, o nível de vida remanescente ou a expiração de um
+temporizador de \textit{cooldown}. A \autoref{fig:fsm-exemplo} ilustra, de
+forma conceitual, a estrutura de uma FSM típica para um chefe de jogo 2D.
+
+ \begin{figure}[htb]
+     \centering
+     \includegraphics[width=0.7\textwidth]{imagens/fsm_boss.png}
+     \caption{Exemplo conceitual de FSM para um chefe de jogo 2D, com
+              estados \textit{Idle}, \textit{Chase}, \textit{Attack} e
+              \textit{Retreat}.}
+     \label{fig:fsm-exemplo}
+     \fonte{Elaborado pelo autor.}
+ \end{figure}
+
+As principais vantagens de FSMs residem em sua simplicidade de implementação,
+previsibilidade comportamental e facilidade de depuração. Essas qualidades
+tornam-nas particularmente adequadas para contextos de produção, nos quais os
+projetistas necessitam de controle total sobre o comportamento do NPC e de
+garantias quanto à reprodutibilidade de cenários de teste
+\cite{millington2019ai}.
+
+Contudo, a previsibilidade que constitui uma vantagem em termos de engenharia
+converte-se em limitação sob a perspectiva do jogador: após poucas interações,
+os padrões de comportamento tornam-se evidentes, reduzindo o desafio percebido
+e comprometendo a rejogabilidade \cite{yannakakis2018artificial}. Além disso,
+a complexidade de manutenção cresce de forma combinatória com o número de
+estados e transições, tornando difícil a adição de novos comportamentos sem
+introduzir efeitos colaterais indesejados.
+
+Essas limitações motivam a investigação de abordagens complementares, capazes
+de gerar comportamentos menos previsíveis e mais adaptáveis às ações do
+jogador. Neste trabalho, a FSM é empregada como \textit{baseline}
+determinístico, fornecendo um referencial estável e interpretável para
+comparação com o agente treinado por Aprendizado por Reforço.
+
+% -----------------------------------------------------------------------------
+\section{Aprendizado por Reforço}
+\label{sec:aprendizado-reforco}
+
+O Aprendizado por Reforço (\textit{Reinforcement Learning} --- RL) é um
+paradigma de aprendizado de máquina no qual um agente aprende a tomar decisões
+por meio de interações com um ambiente. Diferentemente do aprendizado
+supervisionado, no qual o modelo é treinado com pares de entrada e saída
+rotulados, no RL o agente recebe sinais de recompensa numérica que indicam a
+qualidade relativa de suas ações, sem instrução explícita sobre qual ação
+tomar em cada situação \cite{sutton2018reinforcement}.
+
+\subsection{Formulação como Processo de Decisão de Markov}
+\label{subsec:mdp}
+
+O arcabouço formal do RL é tipicamente modelado como um Processo de Decisão de
+Markov (MDP --- \textit{Markov Decision Process}), definido pela tupla
+$\langle S, A, P, R, \gamma \rangle$, em que:
+
+\begin{itemize}
+    \item $S$ é o conjunto de estados do ambiente;
+    \item $A$ é o conjunto de ações disponíveis ao agente;
+    \item $P(s' | s, a)$ é a função de transição, que define a probabilidade
+          de o ambiente transitar para o estado $s'$ dado que o agente executou
+          a ação $a$ no estado $s$;
+    \item $R(s, a, s')$ é a função de recompensa, que atribui um valor
+          numérico à transição de $s$ para $s'$ por meio da ação $a$;
+    \item $\gamma \in [0, 1]$ é o fator de desconto, que pondera a importância
+          relativa de recompensas futuras em relação a recompensas imediatas.
+\end{itemize}
+
+O objetivo do agente é aprender uma política $\pi(a|s)$ --- uma função que
+mapeia estados a distribuições de probabilidade sobre ações --- que maximize o
+retorno esperado acumulado ao longo do tempo. O retorno $G_t$ a partir do
+instante $t$ é definido como:
+
+\begin{equation}
+    G_t = \sum_{k=0}^{\infty} \gamma^k \, R_{t+k+1}
+    \label{eq:retorno}
+\end{equation}
+
+\noindent em que $R_{t+k+1}$ denota a recompensa recebida $k+1$ passos após o
+instante $t$ \cite{sutton2018reinforcement}.
+
+\subsection{Métodos Policy Gradient}
+\label{subsec:policy-gradient}
+
+Uma família importante de algoritmos de RL são os métodos de gradiente de
+política (\textit{Policy Gradient}), nos quais a política $\pi_\theta$ é
+parametrizada diretamente --- por exemplo, por uma rede neural com parâmetros
+$\theta$ --- e otimizada por gradiente ascendente sobre uma função objetivo
+que mede o retorno esperado. A vantagem dessa família de métodos é a
+capacidade de lidar naturalmente com espaços de ação discretos e contínuos,
+além de produzir políticas estocásticas que favorecem a exploração
+\cite{sutton2018reinforcement}.
+
+O gradiente da função objetivo, segundo o Teorema do Gradiente de Política, é
+dado por:
+
+\begin{equation}
+    \nabla_\theta J(\theta)
+    = \mathbb{E}_{\pi_\theta}
+      \!\left[\,
+        \nabla_\theta \log \pi_\theta(a_t | s_t) \; \hat{A}_t
+      \,\right]
+    \label{eq:policy-gradient}
+\end{equation}
+
+\noindent em que $\hat{A}_t$ é uma estimativa da função de vantagem
+(\textit{advantage function}), que mede o quanto a ação $a_t$ é melhor ou pior
+do que a ação média sob a política corrente.
+
+\subsection{Proximal Policy Optimization (PPO)}
+\label{subsec:ppo}
+
+O \textit{Proximal Policy Optimization} (PPO), proposto por
+\citeonline{schulman2017ppo}, é um algoritmo de gradiente de política que
+endereça um problema recorrente em métodos anteriores: a instabilidade causada
+por atualizações excessivamente grandes nos parâmetros da política. Algoritmos
+como o \textit{Trust Region Policy Optimization} (TRPO) abordaram essa questão
+por meio de restrições de segunda ordem, mas com custo computacional elevado.
+O PPO propõe uma solução mais simples, baseada em uma função objetivo
+\textit{clipped} que limita a magnitude das atualizações sem exigir cálculos
+de segunda ordem.
+
+A função objetivo do PPO é definida como:
+
+\begin{equation}
+    L^{CLIP}(\theta)
+    = \mathbb{E}_t \!\left[\,
+        \min\!\Big(
+            r_t(\theta) \, \hat{A}_t, \;
+            \text{clip}\big(r_t(\theta),\; 1 - \epsilon,\; 1 + \epsilon\big)
+            \, \hat{A}_t
+        \Big)
+    \,\right]
+    \label{eq:ppo-clip}
+\end{equation}
+
+\noindent em que $r_t(\theta) = \frac{\pi_\theta(a_t | s_t)}
+{\pi_{\theta_{\text{old}}}(a_t | s_t)}$ é a razão entre a probabilidade da
+ação sob a política atualizada e sob a política anterior, e
+$\epsilon$ é um hiperparâmetro que controla o tamanho máximo permitido
+para a atualização. Valores típicos de $\epsilon$ situam-se em torno de
+$0{,}2$ \cite{schulman2017ppo}.
+
+O mecanismo de \textit{clipping} opera da seguinte forma: quando a razão
+$r_t(\theta)$ ultrapassa o intervalo $[1 - \epsilon, \; 1 + \epsilon]$, o
+gradiente é atenuado, impedindo que a política se afaste excessivamente da
+versão anterior em uma única iteração. Esse mecanismo garante atualizações
+conservadoras, resultando em maior estabilidade durante o treinamento.
+
+Do ponto de vista prático, o PPO apresenta características que o tornam
+particularmente adequado para aplicações em jogos: estabilidade de treinamento
+com ajuste mínimo de hiperparâmetros, compatibilidade com espaços de ação
+discretos --- comuns em jogos 2D --- e eficiência amostral razoável em
+ambientes simulados. Essas qualidades justificam sua adoção como algoritmo
+padrão no Unity ML-Agents \cite{juliani2020unity}.
+
+% -----------------------------------------------------------------------------
+\section{Unity ML-Agents}
+\label{sec:ml-agents}
+
+O Unity ML-Agents \textit{Toolkit} é uma plataforma de código aberto
+desenvolvida pela Unity Technologies que permite o treinamento de agentes
+inteligentes em ambientes construídos com o motor de jogo Unity
+\cite{juliani2020unity}. A plataforma integra o ambiente de simulação do Unity
+com bibliotecas de aprendizado de máquina escritas em Python, notadamente o
+PyTorch, estabelecendo um canal de comunicação bidirecional entre o motor de
+jogo e o processo de treinamento.
+
+\subsection{Arquitetura da Plataforma}
+\label{subsec:ml-agents-arquitetura}
+
+A arquitetura do ML-Agents organiza-se em três camadas principais:
+
+\begin{enumerate}
+    \item \textbf{Ambiente Unity}: contém a cena de simulação, os objetos de
+          jogo e os scripts de comportamento dos agentes. Cada agente é
+          implementado como um componente que herda da classe \texttt{Agent},
+          sobrescrevendo métodos para coletar observações, executar ações e
+          receber recompensas.
+
+    \item \textbf{Comunicador}: protocolo de comunicação (\textit{side
+          channel}) que transmite observações do Unity para o processo Python e
+          retorna decisões de ação ao ambiente.
+
+    \item \textbf{Treinador Python}: processo externo que executa o algoritmo
+          de aprendizado (PPO, SAC, entre outros), atualiza os parâmetros da
+          rede neural do agente e registra métricas de treinamento via
+          TensorBoard.
+\end{enumerate}
+
+\subsection{Ciclo de Treinamento}
+\label{subsec:ml-agents-ciclo}
+
+O ciclo de treinamento no ML-Agents segue a dinâmica padrão do RL. A cada
+passo de decisão (\textit{decision step}), o agente coleta observações do
+ambiente --- como posições, velocidades e estados internos --- e as envia ao
+treinador Python. O treinador seleciona uma ação de acordo com a política
+corrente, e o agente a executa no ambiente Unity. O ambiente retorna uma
+recompensa e o novo estado, fechando o ciclo.
+
+Ao término do treinamento, o modelo resultante é exportado no formato ONNX
+(\textit{Open Neural Network Exchange}) \cite{onnx2019}, um formato
+interoperável que permite a execução de inferência diretamente no Unity, sem
+a necessidade de manter o processo Python ativo. Essa característica é
+fundamental para a integração do agente treinado em um jogo jogável, pois
+permite que o modelo opere em modo de inferência local com desempenho
+compatível com tempo real.
+
+\subsection{Modos de Operação}
+\label{subsec:ml-agents-modos}
+
+O ML-Agents suporta três modos de operação relevantes para este trabalho:
+
+\begin{itemize}
+    \item \textbf{Treinamento}: o agente está conectado ao treinador Python e
+          atualiza seus parâmetros a cada episódio;
+    \item \textbf{Inferência} (\textit{InferenceOnly}): o agente utiliza um
+          modelo ONNX previamente treinado para tomar decisões, sem conexão
+          com o treinador;
+    \item \textbf{Heurístico}: o agente é controlado por lógica programada
+          manualmente, útil para coleta de demonstrações ou testes.
+\end{itemize}
+
+No presente trabalho, o treinamento foi realizado com PPO via treinador
+Python, e o modelo final foi integrado ao Unity em modo
+\textit{InferenceOnly} para a etapa de avaliação quantitativa.
+
+% -----------------------------------------------------------------------------
+\section{Proveniência de Dados}
+\label{sec:proveniencia}
+
+Proveniência de dados (\textit{Data Provenance}) refere-se ao registro
+sistemático da origem, das transformações e do histórico de um dado ou
+artefato ao longo de seu ciclo de vida. Em sua acepção mais geral, a
+proveniência responde às perguntas ``de onde veio este dado?'' e ``por que ele
+possui este valor?'', preservando as relações de causa e efeito entre eventos
+e entidades em um fluxo de processamento \cite{provenance_base}.
+
+\subsection{Proveniência versus Logs Convencionais}
+\label{subsec:proveniencia-vs-logs}
+
+É importante distinguir proveniência de dados de registros de log
+convencionais. Enquanto um log tradicional armazena eventos sequenciais com
+marcações temporais --- essencialmente respondendo ``o que aconteceu e
+quando'' ---, um sistema de proveniência registra, adicionalmente, as relações
+causais entre esses eventos. Cada evento possui referências explícitas ao
+evento que o originou, formando uma estrutura de grafo dirigido acíclico (DAG)
+que representa a cadeia causal da sessão.
+
+Essa distinção é relevante porque a análise de logs planos permite apenas
+correlações temporais (``o evento B ocorreu após o evento A''), ao passo que
+a análise de proveniência permite inferências causais (``o evento B ocorreu
+\textit{em consequência} do evento A''). Essa semântica adicional é
+precisamente o que torna a proveniência útil como fonte de informação para
+orientar processos de aprendizado.
+
+\subsection{Proveniência em Jogos Digitais}
+\label{subsec:proveniencia-jogos}
+
+A aplicação de proveniência ao domínio de jogos digitais foi investigada por
+\citeonline{provenance_base}, que propuseram o uso de grafos de proveniência
+para a visualização e análise de sessões de jogo. Nessa abordagem, cada ação
+relevante do \textit{gameplay} --- como ataques, movimentos, danos recebidos e
+mortes --- é registrada como um nó do grafo, e as relações causais entre ações
+e consequências são representadas como arestas direcionadas.
+
+\citeonline{kohwalter2020provenance} ampliaram essa investigação com um
+levantamento sobre aplicações de proveniência em jogos, demonstrando que os
+grafos resultantes podem ser utilizados para análise \textit{post-mortem} de
+sessões, identificação de padrões de \textit{gameplay}, detecção de
+estratégias emergentes e depuração de \textit{game design}.
+
+A estrutura típica de um grafo de proveniência em uma sessão de jogo de
+combate segue um encadeamento causal como o ilustrado a seguir:
+
+\begin{quote}
+    \texttt{SessionStart} $\rightarrow$ \texttt{BossAttack} $\rightarrow$
+    \texttt{PlayerDamageTaken} $\rightarrow$ \texttt{PlayerAttack}
+    $\rightarrow$ \texttt{BossDamageTaken} $\rightarrow$
+    \texttt{BossDeath} $\rightarrow$ \texttt{SessionEnd}
+\end{quote}
+
+Nessa cadeia, cada evento possui uma referência ao evento que o precedeu
+causalmente. A relação entre \texttt{PlayerAttack} e
+\texttt{BossDamageTaken}, por exemplo, não é meramente temporal: ela indica
+que o dano no chefe foi \textit{causado} pelo ataque do jogador. Essa
+distinção é fundamental para a extração de padrões comportamentais
+significativos.
+
+No presente trabalho, a proveniência é empregada em dois momentos distintos:
+como dado bruto exportado em formato JSON para análise e documentação das
+sessões de jogo; e como fonte indireta de informação para o treinamento do
+agente, por meio da extração de sequências de ações associadas a desfechos
+vitoriosos.
+
+% -----------------------------------------------------------------------------
+\section{Modelagem de Recompensa (\textit{Reward Shaping})}
+\label{sec:reward-shaping}
+
+A definição de funções de recompensa é uma das etapas mais delicadas do
+treinamento por Aprendizado por Reforço. Uma função de recompensa mal
+projetada pode levar a comportamentos degenerados: o agente pode encontrar
+formas de maximizar a recompensa que não correspondem ao objetivo desejado
+pelo projetista --- fenômeno conhecido como \textit{reward hacking}
+\cite{sutton2018reinforcement}.
+
+\subsection{Conceito e Fundamentação Teórica}
+\label{subsec:reward-shaping-conceito}
+
+\textit{Reward Shaping} é uma técnica que consiste na adição de uma
+recompensa auxiliar $F(s, a, s')$ à recompensa original do ambiente $R(s, a,
+s')$, com o objetivo de fornecer sinais intermediários que orientem o agente
+em direção ao comportamento desejado sem alterar a política ótima do problema
+original \cite{ng1999reward}.
+
+\citeonline{ng1999reward} demonstraram formalmente que, quando a recompensa
+auxiliar $F$ assume a forma de uma função potencial baseada em estados:
+
+\begin{equation}
+    F(s, a, s') = \gamma \, \Phi(s') - \Phi(s)
+    \label{eq:pbrs}
+\end{equation}
+
+\noindent em que $\Phi: S \rightarrow \mathbb{R}$ é uma função potencial e
+$\gamma$ é o fator de desconto, a política ótima do MDP original é preservada.
+Essa propriedade, conhecida como invariância de política sob \textit{Potential-
+Based Reward Shaping} (PBRS), garante que o \textit{Reward Shaping} não
+introduz vícios permanentes no aprendizado: ele apenas acelera a convergência
+em direção à política ótima, sem desviá-la.
+
+\subsection{Reward Shaping versus Imitação Direta}
+\label{subsec:shaping-vs-imitacao}
+
+É relevante distinguir \textit{Reward Shaping} de técnicas de aprendizagem
+por imitação, como GAIL \cite{ho2016gail}. Na imitação direta, o agente
+aprende a reproduzir trajetórias demonstradas por um especialista, utilizando
+um discriminador adversário que diferencia o comportamento do agente do
+comportamento demonstrado. Embora eficaz, essa abordagem vincula o agente ao
+comportamento observado, limitando sua capacidade de exploração e dificultando
+a emergência de estratégias originais.
+
+O \textit{Reward Shaping}, por outro lado, atua como um sinal orientador que
+não substitui a recompensa do ambiente. O agente continua explorando
+livremente e otimizando a recompensa total; a componente adicional apenas
+indica que certos padrões de comportamento são preferíveis, sem impor uma
+trajetória específica. Essa distinção é particularmente relevante no contexto
+do presente trabalho, no qual a intenção não é que o chefe \textit{copie} o
+comportamento de um jogador humano, mas sim que receba orientação de padrões
+causais extraídos de sessões bem-sucedidas.
+
+\subsection{Aplicação ao Contexto do Trabalho}
+\label{subsec:shaping-aplicacao}
+
+No pipeline proposto neste trabalho, o \textit{Reward Shaping} é alimentado
+por sequências de ações extraídas de grafos de proveniência. Essas sequências
+representam padrões de comportamento que precederam eventos favoráveis ---
+especificamente, dano causado no chefe em sessões vitoriosas. Quando o agente
+PPO, durante o treinamento, executa uma sequência de ações que coincide com
+uma das sequências extraídas, ele recebe uma recompensa adicional.
+
+Esse mecanismo combina as vantagens das duas áreas: a proveniência fornece
+informação causal interpretável sobre o que constituiu comportamento bem-
+sucedido, e o \textit{Reward Shaping} converte essa informação em um sinal
+de treinamento compatível com o framework de RL, sem sacrificar a autonomia
+exploratória do agente.
+
+% -----------------------------------------------------------------------------
+\section{Considerações sobre o Referencial}
+\label{sec:consideracoes-referencial}
+
+Os conceitos apresentados neste capítulo fornecem a base teórica para a
+compreensão do pipeline proposto. A FSM oferece o \textit{baseline}
+determinístico necessário para uma comparação objetiva. O Aprendizado por
+Reforço, por meio do PPO, fornece o algoritmo de treinamento do agente. O
+Unity ML-Agents viabiliza a execução desse treinamento diretamente no motor
+de jogo. A Proveniência de Dados possibilita o registro e a análise causal
+de sessões de jogo. E o \textit{Reward Shaping} fornece o mecanismo teórico
+para converter padrões causais em sinais de recompensa auxiliares, preservando
+a política ótima.
+
+A integração dessas cinco áreas constitui o diferencial metodológico do
+presente trabalho, cujos detalhes de implementação e aplicação são
+apresentados nos capítulos subsequentes.

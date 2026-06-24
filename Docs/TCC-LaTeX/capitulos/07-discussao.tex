@@ -1,0 +1,288 @@
+% =============================================================================
+% Capítulo 7 — Discussão
+% =============================================================================
+\chapter{Discussão}
+\label{cap:discussao}
+
+Este capítulo interpreta os resultados apresentados no
+\autoref{cap:resultados}, analisando o comportamento exibido pelo agente PPO
+em comparação com o \textit{baseline} FSM, discutindo as limitações
+observadas e avaliando em que medida a proposta central do trabalho ---
+utilizar proveniência como fonte de \textit{Reward Shaping} para aprendizado
+por reforço --- foi validada pelos dados coletados.
+
+% -----------------------------------------------------------------------------
+\section{Análise de Comportamento e Agressividade}
+\label{sec:analise-comportamento}
+
+Os dados quantitativos da avaliação revelam um perfil comportamental
+marcadamente distinto entre as duas condições experimentais. A análise a
+seguir examina as dimensões mais relevantes dessa distinção.
+
+\subsection{Duração e Persistência}
+\label{subsec:duracao-persistencia}
+
+A duração média das sessões contra o chefe PPO ($15{,}18 \pm 7{,}74$ s) é
+aproximadamente 2,5 vezes superior à duração média contra o chefe FSM
+($5{,}97 \pm 2{,}79$ s). Esse resultado indica que o chefe PPO é capaz de
+prolongar o combate de forma consistente, resistindo por mais tempo antes de
+ser derrotado. A maior variabilidade observada na condição PPO (desvio-padrão
+de $7{,}74$ s, contra $2{,}79$ s no FSM) reflete a natureza menos previsível
+do agente treinado: enquanto o FSM segue padrões fixos que conduzem a durações
+relativamente uniformes, o PPO produz sessões com dinâmicas variadas, oscilando
+entre 8,8 e 36,1 segundos na amostra oficial.
+
+A persistência do chefe PPO não decorre de uma estratégia defensiva
+elaborada --- os dados mostram que o agente é predominantemente ofensivo ---,
+mas sim da pressão constante que exerce sobre o jogador. Ao atacar e se
+movimentar com alta frequência, o agente dificulta a aproximação do jogador
+e impõe um ritmo de combate mais intenso, o que prolonga naturalmente a
+duração das sessões.
+
+\subsection{Agressividade Ofensiva}
+\label{subsec:agressividade}
+
+A diferença mais expressiva entre as duas condições reside na contagem de
+ataques do chefe. O chefe FSM executou, em média, $5{,}60 \pm 1{,}58$ ataques
+por sessão, enquanto o chefe PPO executou $296{,}60 \pm 186{,}86$ --- uma
+diferença de aproximadamente \textbf{53 vezes}. A distribuição de ações do
+agente PPO confirma essa postura ofensiva: 39,05\% de todas as decisões do
+agente correspondem à ação \textit{Attack}, seguida por \textit{Jump} com
+27,95\%. Juntas, essas duas ações representam aproximadamente 67\% do
+comportamento total do agente.
+
+Essa agressividade reflete-se no comportamento adaptativo do jogador. Nas
+sessões contra o PPO, o jogador executou mais pulos ($3{,}50$ vs.\ $0{,}30$),
+mais ataques ($15{,}80$ vs.\ $10{,}70$) e mais \textit{dashes} ($0{,}50$ vs.\
+$0{,}20$), sugerindo que a pressão exercida pelo chefe PPO forçou uma postura
+mais ativa e evasiva por parte do jogador. A necessidade de mais ataques para
+vencer indica que o jogador precisou investir mais esforço ofensivo para
+superar o chefe PPO, ao passo que contra o FSM bastavam estratégias mais
+diretas e econômicas.
+
+\subsection{Capacidade de Ameaça}
+\label{subsec:capacidade-ameaca}
+
+O dano médio recebido pelo jogador foi ligeiramente superior na condição PPO
+($56{,}00 \pm 22{,}21$) em comparação com a condição FSM ($50{,}00 \pm
+14{,}14$). Embora a diferença nas médias seja moderada --- em parte limitada
+pelo \textit{cooldown} de dano que equaliza a taxa de dano efetivo entre as
+condições ---, o dado qualitativamente mais significativo é a ocorrência da
+\textbf{única derrota do jogador} em toda a amostra de 20 sessões.
+
+Nessa sessão específica, o jogador recebeu 100 pontos de dano (totalidade de
+sua vida) e o chefe sobreviveu com 50 pontos de vida remanescentes. Essa
+derrota demonstra que o agente PPO é capaz de produzir cenários de combate nos
+quais o chefe representa uma ameaça real à sobrevivência do jogador, ao
+contrário do FSM, cuja previsibilidade permitiu ao jogador vencer todas as
+sessões sem exceção.
+
+% -----------------------------------------------------------------------------
+\section{O Fenômeno da Repetição Mecânica}
+\label{sec:repeticao-mecanica}
+
+A despeito dos indicadores positivos de agressividade e persistência, o
+comportamento do agente PPO apresenta uma limitação que deve ser discutida com
+transparência: a alta repetição de ações, comumente referida como
+\textit{spam}.
+
+\subsection{Caracterização do Fenômeno}
+\label{subsec:caracterizacao-spam}
+
+Os dados de distribuição de ações revelam que o agente concentra 39,05\%
+de suas decisões na ação \textit{Attack} e 27,95\% na ação \textit{Jump}.
+Essa concentração produz um comportamento visualmente repetitivo: o chefe PPO
+ataca e pula de forma quase contínua, com pouca variação tática aparente. A
+consequência visual é que o chefe pode parecer ``preso'' na animação de
+ataque, pois o \textit{feedback} visual representa a última ação executada e
+o agente ataca com altíssima frequência.
+
+Embora o \textit{cooldown} de dano (0,8 segundos) implementado no
+\texttt{BossAttackDamage} limite a taxa de dano efetivo --- impedindo que o
+\textit{spam} resulte em morte instantânea do jogador ---, a contagem de ações
+registrada no CSV reflete todas as \textit{tentativas} de ataque, não apenas
+aquelas que efetivamente aplicaram dano. Assim, a grande maioria dos 296,60
+ataques médios por sessão não gera dano real; eles representam decisões do
+agente que são neutralizadas pelo mecanismo de \textit{cooldown}.
+
+\subsection{Origem do Comportamento}
+\label{subsec:origem-comportamento}
+
+A repetição mecânica pode ser atribuída à combinação de dois fatores
+estruturais:
+
+\begin{enumerate}
+    \item \textbf{Ausência de custo no espaço de ações}: o espaço de ações
+          discretas do \texttt{BossAgent} não incorpora \textit{cooldowns}
+          internos nem penalidades por repetição. Cada uma das seis ações pode
+          ser executada em qualquer passo de decisão, sem restrição temporal
+          ou custo energético. O algoritmo PPO, ao identificar que ações de
+          ataque geram recompensa --- tanto extrínseca (por causar dano)
+          quanto auxiliar (via \textit{Reward Shaping}) ---, convergiu para
+          uma política que maximiza a frequência dessas ações;
+
+    \item \textbf{Modelo congelado sem pós-processamento}: o modelo avaliado
+          é o resultado direto do \textit{run} de treinamento, exportado como
+          ONNX e integrado sem ajustes. A decisão de preservar o modelo
+          congelado é metodologicamente correta --- a avaliação deve medir o
+          comportamento aprendido, não um comportamento corrigido
+          \textit{post hoc} --- mas implica que qualquer tendência degenerada
+          da política aprendida é transportada integralmente para a avaliação.
+\end{enumerate}
+
+Essa observação sugere que, em trabalhos futuros, a inclusão de
+\textit{cooldowns} diretamente no espaço de ações do agente ou a adição de
+penalidades por repetição na função de recompensa poderiam mitigar o fenômeno
+sem comprometer a autonomia do PPO.
+
+\subsection{Preservação Metodológica}
+\label{subsec:preservacao-metodologica}
+
+É importante registrar que a decisão de não corrigir o comportamento
+repetitivo antes da análise foi deliberada. Corrigir o \textit{spam} ---
+por exemplo, adicionando um \textit{cooldown} forçado às ações do agente
+antes da coleta --- descaracterizaria a avaliação, pois introduziria uma
+modificação \textit{post hoc} que alteraria os dados coletados sem refletir
+uma melhoria genuína no aprendizado. O comportamento repetitivo é um
+resultado experimental do modelo congelado e, como tal, deve ser reportado
+e discutido, não ocultado.
+
+% -----------------------------------------------------------------------------
+\section{Validação da Proposta: Reward Shaping por Proveniência}
+\label{sec:validacao-proposta}
+
+A questão central do trabalho é se sequências extraídas de grafos de
+proveniência podem ser utilizadas como sinal auxiliar de recompensa para
+orientar o treinamento de um agente PPO, produzindo um comportamento
+mensuravelmente distinto do \textit{baseline} FSM --- sem recorrer a
+imitação direta ou demonstrações gravadas.
+
+\subsection{Evidências de Distinção Comportamental}
+\label{subsec:evidencias-distincao}
+
+Os dados da avaliação fornecem evidências consistentes de que o objetivo foi
+alcançado. O agente PPO difere do \textit{baseline} FSM em múltiplas
+dimensões mensuráveis:
+
+\begin{itemize}
+    \item \textbf{Duração}: sessões 2,5 vezes mais longas;
+    \item \textbf{Volume de ações}: 53 vezes mais ataques por sessão;
+    \item \textbf{Ameaça}: única condição a produzir derrota do jogador;
+    \item \textbf{Distribuição de ações}: política concentrada em ações
+          ofensivas, contrastando com o padrão cíclico regular do FSM;
+    \item \textbf{Impacto no jogador}: aumento de pulos, ataques e
+          \textit{dashes} do jogador na condição PPO, indicando adaptação a
+          um oponente mais exigente.
+\end{itemize}
+
+Essas diferenças não são marginais nem atribuíveis a ruído amostral: a
+magnitude das diferenças --- particularmente na contagem de ataques e na
+duração --- excede largamente os desvios-padrão de ambas as condições.
+
+\subsection{O Papel da Proveniência}
+\label{subsec:papel-proveniencia}
+
+O mecanismo de \textit{Reward Shaping} por proveniência operou conforme
+projetado. As três ações que participam do \textit{Reward Shaping} ---
+\textit{Attack}, \textit{Jump} e \textit{Dash} --- totalizam 77,48\% de
+todas as ações executadas pelo agente, indicando que o sinal auxiliar de
+recompensa exerceu influência mensurável sobre a distribuição da política
+aprendida. O agente desenvolveu preferência pelas ações que eram
+recompensadas quando executadas em sequências compatíveis com padrões
+vitoriosos extraídos dos grafos de proveniência.
+
+Esse resultado é significativo porque demonstra que a proveniência cumpriu
+sua função de \textbf{fonte de informação causal} para o treinamento: as
+sequências extraídas dos grafos --- que codificam padrões de ações associados
+a desfechos favoráveis --- foram efetivamente incorporadas ao comportamento
+do agente por meio do \textit{Reward Shaping}, sem a necessidade de
+demonstrações diretas, arquivos \texttt{.demo} ou discriminadores adversários
+(GAIL).
+
+\subsection{Distinção em Relação à Imitação Direta}
+\label{subsec:distincao-imitacao}
+
+É fundamental distinguir o resultado obtido de um resultado de imitação. O
+agente PPO \textbf{não copiou} o comportamento do jogador humano. Ele
+explorou o ambiente livremente via PPO e recebeu recompensa adicional quando
+executou sequências de ações compatíveis com padrões vitoriosos. O
+comportamento resultante --- altamente agressivo e repetitivo --- não se
+assemelha ao comportamento do jogador humano nas sessões originais de coleta
+de proveniência. Isso confirma que o agente desenvolveu sua própria política
+a partir dos sinais de recompensa, não uma réplica do comportamento observado.
+
+Essa distinção é relevante tanto do ponto de vista técnico --- o pipeline não
+utiliza GAIL \cite{ho2016gail} nem demonstrações gravadas --- quanto do ponto
+de vista da contribuição acadêmica: o trabalho demonstra uma via alternativa
+para orientar o aprendizado de agentes de jogo, baseada em informação causal
+rastreável.
+
+\subsection{Qualificações Necessárias}
+\label{subsec:qualificacoes}
+
+Os resultados devem ser interpretados com as seguintes qualificações, que
+delimitam o alcance da contribuição:
+
+\begin{enumerate}
+    \item A amostra de 20 sessões (10 por condição) permite identificar
+          diferenças comportamentais observadas, mas não estabelece
+          significância estatística formal;
+    \item A avaliação foi conduzida pelo próprio desenvolvedor, que conhece
+          os padrões de ambos os chefes, introduzindo potencial viés de
+          familiaridade;
+    \item O modelo PPO não foi retreinado após a adição do
+          \texttt{PlayerHealth} real; as observações de vida do jogador e
+          \textit{cooldown} de \textit{dash} permaneceram como
+          \textit{placeholders} fixos;
+    \item A cena PPO não exportou grafos de proveniência durante a avaliação,
+          por decisão de escopo;
+    \item Os dados documentam um comportamento \textit{distinto}, não
+          necessariamente \textit{superior}: as métricas provam diferença
+          comportamental observada, não superioridade universal do agente PPO
+          sobre o FSM.
+\end{enumerate}
+
+\subsection{Síntese}
+\label{subsec:sintese-discussao}
+
+Em síntese, o trabalho demonstrou que sequências extraídas de grafos de
+proveniência podem ser utilizadas como sinal auxiliar de recompensa em um
+agente PPO, produzindo um chefe com comportamento mensuravelmente distinto
+do \textit{baseline} FSM em um ambiente de jogo 2D. O agente resultante é
+mais agressivo, mais persistente e capaz de ameaçar a sobrevivência do
+jogador, embora o comportamento aprendido apresente repetição mecânica que
+compromete a percepção de sofisticação tática. A contribuição reside na
+demonstração de viabilidade da integração entre proveniência e aprendizado
+por reforço em um protótipo jogável, abrindo caminhos para refinamentos
+futuros.
+
+% -----------------------------------------------------------------------------
+\section{Trabalhos Futuros}
+\label{sec:trabalhos-futuros}
+
+As limitações identificadas indicam direções concretas para trabalhos futuros:
+
+\begin{enumerate}
+    \item \textbf{Cooldowns no espaço de ações}: incorporar
+          \textit{cooldowns} diretamente às ações discretas do agente,
+          impedindo a repetição imediata e incentivando maior variedade
+          tática;
+    \item \textbf{Retreino com observações completas}: retreinar o modelo
+          com a vida real do jogador e o \textit{cooldown} de \textit{dash}
+          como observações efetivas, permitindo que o agente adapte seu
+          comportamento ao estado do oponente;
+    \item \textbf{\textit{Curriculum learning}}: introduzir fases de
+          treinamento com dificuldade crescente, permitindo que o agente
+          desenvolva estratégias progressivamente mais sofisticadas;
+    \item \textbf{Avaliação com playtesters externos}: conduzir avaliação
+          com jogadores externos e instrumentos de percepção subjetiva
+          (questionários), complementando as métricas quantitativas com
+          dados de experiência do jogador;
+    \item \textbf{\textit{Self-play}}: investigar o uso de \textit{self-play}
+          como mecanismo complementar de treinamento, permitindo que o agente
+          evolua contra versões anteriores de si mesmo;
+    \item \textbf{\textit{Reward Shaping} adaptativo}: explorar esquemas de
+          \textit{Reward Shaping} que atualizem as sequências-alvo ao longo
+          do treinamento, à medida que novas sessões de proveniência são
+          coletadas.
+\end{enumerate}
